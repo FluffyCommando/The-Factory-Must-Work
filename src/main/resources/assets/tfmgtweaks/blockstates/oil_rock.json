@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "cracked=false": { "model": "tfmgtweaks:block/oil_rock" },
+    "cracked=true": { "model": "tfmgtweaks:block/oil_rock_cracked" }
+  }
+}

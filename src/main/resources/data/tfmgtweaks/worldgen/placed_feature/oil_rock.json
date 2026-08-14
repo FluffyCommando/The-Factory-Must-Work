@@ -1,0 +1,14 @@
+{
+  "feature": "tfmgtweaks:oil_rock",
+  "placement": [
+    {
+      "type": "tfmgtweaks:oil_rock_rarity_filter"
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "tfmgtweaks:oil_rock_height_range"
+    }
+  ]
+}

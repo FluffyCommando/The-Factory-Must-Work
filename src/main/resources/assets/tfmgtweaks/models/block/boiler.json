@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "top": "tfmg:block/steel_fluid_tank_top",
+    "bottom": "tfmg:block/steel_fluid_tank",
+    "side": "tfmg:block/steel_fluid_tank"
+  }
+}

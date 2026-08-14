@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "tfmgtweaks:block/boiler" }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "adpother"
+    }
+  ],
+  "type": "tfmg:vat_machine_recipe",
+  "allowed_vat_types": [
+    "tfmg:cast_iron_vat",
+    "tfmg:steel_vat",
+    "tfmg:firebrick_lined_vat"
+  ],
+  "heat_level": 1,
+  "ingredients": [
+    {
+      "type": "neoforge:single",
+      "amount": 1000,
+      "fluid": "adpother:polluted_water_still"
+    }
+  ],
+  "machines": [
+    "tfmg:centrifuge"
+  ],
+  "min_size": 1,
+  "results": [
+    {
+      "amount": 1000,
+      "id": "minecraft:water"
+    },
+    {
+      "id": "minecraft:mud"
+    }
+  ]
+}

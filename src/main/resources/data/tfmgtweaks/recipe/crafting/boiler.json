@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "I": {
+      "item": "tfmg:cast_iron_sheet"
+    },
+    "P": {
+      "item": "tfmg:cast_iron_pipe"
+    },
+    "T": {
+      "item": "tfmg:cast_iron_fluid_tank"
+    }
+  },
+  "pattern": [
+    "III",
+    "PTP",
+    "III"
+  ],
+  "result": {
+    "count": 4,
+    "id": "tfmgtweaks:boiler"
+  }
+}
