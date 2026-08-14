@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue)
 ![Version 1.0.0](https://img.shields.io/badge/Version-1.0.0-orange)
 
-A NeoForge addon for [The Factory Must Grow](https://www.curseforge.com/minecraft/mc-mods/tfmg) (TFMG), a [Create](https://www.curseforge.com/minecraft/mc-mods/create) addon. Adds a reworked oil extraction chain built around a new Steam fluid, plus a large collection of bug fixes for TFMG itself — multiblock reliability issues, missing pipe/fluid connectivity, crash loops, incorrect electrical/mechanical behavior, and JEI display bugs.
+A NeoForge addon for [The Factory Must Grow](https://www.curseforge.com/minecraft/mc-mods/create-industry) (TFMG), a [Create](https://www.curseforge.com/minecraft/mc-mods/create) addon. Adds a reworked oil extraction chain built around a new Steam fluid, plus a large collection of bug fixes for TFMG itself — multiblock reliability issues, missing pipe/fluid connectivity, crash loops, incorrect electrical/mechanical behavior, and JEI display bugs.
 
 Packaged as its own mod jar rather than a fork of TFMG — bug fixes are applied via Mixin at runtime, so TFMG's own jar is never touched or recompiled.
 
