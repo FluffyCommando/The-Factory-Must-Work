@@ -5,14 +5,14 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue)
 ![Version 1.0.0](https://img.shields.io/badge/Version-1.0.0-orange)
 
-A NeoForge addon for [The Factory Must Grow](https://www.curseforge.com/minecraft/mc-mods/create-industry) (TFMG), a [Create](https://www.curseforge.com/minecraft/mc-mods/create) addon. Adds a reworked oil extraction chain built around a new Steam fluid, plus a large collection of bug fixes for TFMG itself — multiblock reliability issues, missing pipe/fluid connectivity, crash loops, incorrect electrical/mechanical behavior, and JEI display bugs.
+A NeoForge addon for [The Factory Must Grow](https://www.curseforge.com/minecraft/mc-mods/create-industry) (TFMG 1.2.2), a [Create](https://www.curseforge.com/minecraft/mc-mods/create) addon. Adds a reworked oil extraction chain built around a new Steam fluid, plus a large collection of bug fixes for TFMG itself — multiblock reliability issues, missing pipe/fluid connectivity, crash loops, incorrect electrical/mechanical behavior, and JEI display bugs.
 
 Packaged as its own mod jar rather than a fork of TFMG — bug fixes are applied via Mixin at runtime, so TFMG's own jar is never touched or recompiled.
 
 ## Requirements
 
 - Minecraft 1.21.1, NeoForge
-- [Create](https://www.curseforge.com/minecraft/mc-mods/create) and [TFMG](https://www.curseforge.com/minecraft/mc-mods/create-industry)
+- [Create](https://www.curseforge.com/minecraft/mc-mods/create) and [TFMG v1.2.2](https://www.curseforge.com/minecraft/mc-mods/create-industry)
 
 Optional, neither required:
 - [Sable](https://www.curseforge.com/minecraft/mc-mods/sable) — if installed, the Surface Scanner correctly detects oil deposits when placed on a moving Sable physics object.
@@ -29,7 +29,7 @@ Optional, neither required:
 ## Installation
 
 1. Install NeoForge for Minecraft 1.21.1.
-2. Download and install [Create](https://www.curseforge.com/minecraft/mc-mods/create) and [TFMG](https://www.curseforge.com/minecraft/mc-mods/create-industry).
+2. Download and install [Create](https://www.curseforge.com/minecraft/mc-mods/create) and [TFMG v1.2.2](https://www.curseforge.com/minecraft/mc-mods/create-industry).
 3. Drop this mod's jar into your `mods` folder alongside them.
 
 No config changes are required to get the new content and bug fixes working — everything ships with sensible defaults. See [Balance & Configuration](#balance--configuration) if you want to tune anything.
