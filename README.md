@@ -1,9 +1,10 @@
-# Create: The Factory Must WORK
-
-![Minecraft 1.21.1](https://img.shields.io/badge/Minecraft-1.21.1-62B47A)
-![NeoForge](https://img.shields.io/badge/Loader-NeoForge-D7A65F)
-![License: MIT](https://img.shields.io/badge/License-MIT-blue)
-![Version 1.0.0](https://img.shields.io/badge/Version-1.0.0-orange)
+<div align="center">
+  <img src="https://github.com/FluffyCommando/The-Factory-Must-Work/blob/main/logo.png" width="100">
+  <h1>Create: The Factory Must WORK!</h1>
+  <a href="https://github.com/FluffyCommando/The-Factory-Must-Work/releases/latest"><picture><img alt="Latest Release" src="https://img.shields.io/badge/Version-1.0.0-orange"></picture></a>
+  <br>
+  <a href="https://www.curseforge.com/minecraft/mc-mods/tfmw"><picture><source srcset="https://img.shields.io/badge/CurseForge-202830?style=for-the-badge&logo=curseforge" media="(prefers-color-scheme: dark)"><img src="https://img.shields.io/badge/CurseForge-white?style=for-the-badge&logo=curseforge" alt="CurseForge"></picture></a>
+</div>
 
 A NeoForge addon for [The Factory Must Grow](https://www.curseforge.com/minecraft/mc-mods/create-industry) (TFMG 1.2.2), a [Create](https://www.curseforge.com/minecraft/mc-mods/create) addon. Adds a reworked oil extraction chain built around a new Steam fluid, plus a large collection of bug fixes for TFMG itself — multiblock reliability issues, missing pipe/fluid connectivity, crash loops, incorrect electrical/mechanical behavior, and JEI display bugs.
 
