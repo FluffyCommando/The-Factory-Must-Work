@@ -1,7 +1,7 @@
 <div align="center">
   <img src="https://github.com/FluffyCommando/The-Factory-Must-Work/blob/main/logo.png" width="100">
   <h1>Create: The Factory Must WORK!</h1>
-  <a href="https://github.com/FluffyCommando/The-Factory-Must-Work/releases/latest"><picture><img alt="Latest Release" src="https://img.shields.io/badge/Version-1.1.1-orange"></picture></a>
+  <a href="https://github.com/FluffyCommando/The-Factory-Must-Work/releases/latest"><picture><img alt="Latest Release" src="https://img.shields.io/github/v/release/FluffyCommando/The-Factory-Must-Work?filter=!*-ce&label=Version&color=orange"></picture></a>
   <br>
   <a href="https://www.curseforge.com/minecraft/mc-mods/tfmw"><picture><source srcset="https://img.shields.io/badge/CurseForge-202830?style=for-the-badge&logo=curseforge" media="(prefers-color-scheme: dark)"><img src="https://img.shields.io/badge/CurseForge-white?style=for-the-badge&logo=curseforge" alt="CurseForge"></picture></a>
 </div>
