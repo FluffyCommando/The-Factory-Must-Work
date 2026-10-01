@@ -9,20 +9,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * See GeneratorBlockEntityMixin for full context.
- *
- * Unlike the hum sounds, this one is a discrete click on state change, not
- * a periodic loop -- analogSignalChanged(int) is called whenever the
- * switch's redstone signal changes, and "signal" (the previous value) is
- * still the OLD value at HEAD, since the method's first statement is what
- * overwrites it. Comparing old vs new here detects the actual on/off
- * transition. "signal" is package-private in the target class, so it's
- * shadowed here rather than accessed directly.
- */
+/** Plays the restored switch on/off sound when the switch's redstone signal turns on or off. */
 @Mixin(ElectricSwitchBlockEntity.class)
 public abstract class ElectricSwitchBlockEntityMixin {
-
     @Shadow
     private int signal;
 

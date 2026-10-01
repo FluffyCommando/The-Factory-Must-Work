@@ -36,18 +36,6 @@ side = "BOTH"
 [[dependencies."${mod_id}"]]
 modId = "tfmg"
 type = "required"
-versionRange = "[1.2.0,)"
+versionRange = "[1.3.2,)"
 ordering = "AFTER"
 side = "BOTH"
-
-# Optional, not required: JEI is a client-only recipe viewer. TFMG itself
-# doesn't hard-require it at the mod-loading level either (only its own
-# Gradle build does, for compiling the integration classes) -- if JEI isn't
-# installed, JEI's own plugin loader just never touches these classes, so
-# nothing here needs it to be present to load correctly.
-[[dependencies."${mod_id}"]]
-modId = "jei"
-type = "optional"
-versionRange = "[19.0.0,)"
-ordering = "AFTER"
-side = "CLIENT"

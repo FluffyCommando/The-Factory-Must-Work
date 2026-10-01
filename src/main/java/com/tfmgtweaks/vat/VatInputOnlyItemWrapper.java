@@ -4,14 +4,8 @@ import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import net.neoforged.neoforge.items.wrapper.CombinedInvWrapper;
 import net.minecraft.world.item.ItemStack;
 
-/**
- * Same idea as VatInputOnlyFluidWrapper but for items (see
- * VatBlockEntityCapabilityFixMixin): wraps a vat's input/output
- * inventories, rejecting insertion into any output slot so external
- * hoppers can't starve recipe completion.
- */
+/** Vat item handler that rejects insertion into output slots. */
 public class VatInputOnlyItemWrapper implements IItemHandlerModifiable {
-
     private final IItemHandlerModifiable input;
     private final CombinedInvWrapper combined;
     private final int inputSlots;

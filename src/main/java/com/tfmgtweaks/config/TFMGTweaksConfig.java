@@ -31,6 +31,9 @@ public class TFMGTweaksConfig {
     // surface_scanner
     public static final ModConfigSpec.IntValue SURFACE_SCANNER_RESCAN_INTERVAL_TICKS;
 
+    // oil_hammer
+    public static final ModConfigSpec.BooleanValue OIL_HAMMER_DEBUG_MODE;
+
     // fuel_explosions
     public static final ModConfigSpec.BooleanValue FUEL_EXPLOSIONS_ENABLED;
     public static final ModConfigSpec.BooleanValue FUEL_EXPLOSIONS_REQUIRE_HARD_DIFFICULTY;
@@ -67,6 +70,7 @@ public class TFMGTweaksConfig {
     public static final ModConfigSpec.DoubleValue AIR_INTAKE_POLLUTION_RATE_2X2;
     public static final ModConfigSpec.DoubleValue AIR_INTAKE_POLLUTION_RATE_3X3;
     public static final ModConfigSpec.IntValue AIR_INTAKE_POLLUTION_SPEED_BONUS_BASELINE_RPM;
+    public static final ModConfigSpec.IntValue AIR_INTAKE_GAS_PRODUCTION_HEIGHT_Y;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -157,6 +161,16 @@ public class TFMGTweaksConfig {
                 .comment("How often a Surface Scanner re-scans for deposits",
                 "Default = 2400 ticks")
                 .defineInRange("rescanIntervalTicks", 2400, 1, Integer.MAX_VALUE);
+
+        builder.pop();
+
+        builder.push("oil_hammer");
+
+        OIL_HAMMER_DEBUG_MODE = builder
+                .comment("If true, the Oil Hammer's Oil Rock readout reports the exact coordinates",
+                        "of the nearest Oil Rock instead of the normal vague \"traces of oil\" message.",
+                        "Intended for debugging/development, not normal play.")
+                .define("debugMode", false);
 
         builder.pop();
 
@@ -296,6 +310,14 @@ public class TFMGTweaksConfig {
         AIR_INTAKE_POLLUTION_SPEED_BONUS_BASELINE_RPM = builder
                 .comment("Multiplies the base rates by how fast they are spining starting at 1x with 128 Rpm up to 2x at max speed.")
                 .defineInRange("speedBonusBaselineRpm", 128, 1, 1024);
+
+        AIR_INTAKE_GAS_PRODUCTION_HEIGHT_Y = builder
+                .comment("Fallback Y level to check for pollution when an air intake is",
+                        "producing Carbon Dioxide or Sulfur Dioxide, only used if Pollution of",
+                        "the Realms' own per-gas \"concentration altitude\" setting can't be",
+                        "read directly (normally it can, and that value -- which may differ",
+                        "between gases -- is used instead of this one).")
+                .defineInRange("gasProductionHeightY", 192, -64, 320);
 
         builder.pop();
 

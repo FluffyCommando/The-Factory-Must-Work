@@ -12,14 +12,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Stops flammable fluid sinking into a full water source block, so oil
- * floats instead. Tag-gated (tfmg:flammable) rather than fluid-specific,
- * and source-only so a shallow trickle can still be displaced normally.
- */
+/** Stops flammable fluid replacing water source blocks, so oil floats. */
 @Mixin(WaterFluid.class)
 public abstract class WaterFluidMixin {
-
     @Inject(method = "canBeReplacedWith", at = @At("HEAD"), cancellable = true, require = 0)
     private void tfmgtweaks$keepFlammableFluidOffFullWater(FluidState fluidState, BlockGetter blockGetter,
             BlockPos pos, Fluid fluid, Direction direction, CallbackInfoReturnable<Boolean> cir) {

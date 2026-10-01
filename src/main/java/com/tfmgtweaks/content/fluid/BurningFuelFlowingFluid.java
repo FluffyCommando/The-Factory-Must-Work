@@ -13,20 +13,15 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.BaseFlowingFluid;
 
-/** Burning fuel is placed via markBurning(); see it and FluidIgnition for the full lifecycle. */
+/** Flowing burning fuel; see FluidIgnition for how it is placed and removed. */
 public class BurningFuelFlowingFluid extends BaseFlowingFluid.Flowing {
-
     public BurningFuelFlowingFluid(BaseFlowingFluid.Properties properties) {
         super(properties);
     }
 
     /**
-     * Without an adjacent source, vanilla dissipates a flowing fluid
-     * back to air on its own schedule. A position already holding this
-     * fluid is left as-is instead, since FluidIgnition manages its real
-     * lifecycle directly; a brand new position still gets normal vanilla
-     * computation, and isActivelyClearing() stops a cleared position
-     * being refilled by a not-yet-reached burning neighbor.
+     * Holds its level while unlit flammable fluid is adjacent, then uses normal fluid physics.
+     * Returns empty while FluidIgnition is actively clearing this position.
      */
     @Override
     protected FluidState getNewLiquid(Level level, BlockPos pos, BlockState blockState) {
@@ -34,19 +29,25 @@ public class BurningFuelFlowingFluid extends BaseFlowingFluid.Flowing {
             return Fluids.EMPTY.defaultFluidState();
         }
         FluidState current = level.getFluidState(pos);
-        if (current.getType() == this) {
+        if (current.getType() == this && hasUnlitFlammableNeighbor(level, pos)) {
             return current;
         }
         return super.getNewLiquid(level, pos, blockState);
     }
 
-    /**
-     * Refuses replacement by flammable fluid, mirroring WaterFluidMixin's
-     * protection in reverse -- without it, fresh oil flowing downhill
-     * could overwrite a just-ignited position before fire spread past it.
-     * Not isSource()-restricted like that mixin, since burning fuel
-     * spends most of its life as flowing fragments.
-     */
+    /** Whether any adjacent fluid is flammable but not yet burning. */
+    private boolean hasUnlitFlammableNeighbor(Level level, BlockPos pos) {
+        for (Direction direction : Direction.values()) {
+            FluidState neighbor = level.getFluidState(pos.relative(direction));
+            if (!neighbor.isEmpty() && !neighbor.getType().isSame(this)
+                    && neighbor.getType().is(TFMGTagKeys.FLAMMABLE_FLUID)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Refuses replacement by flammable fluid so fresh oil can't overwrite a just-ignited position. */
     @Override
     public boolean canBeReplacedWith(FluidState fluidState, BlockGetter blockGetter, BlockPos pos, Fluid fluid,
                                       Direction direction) {

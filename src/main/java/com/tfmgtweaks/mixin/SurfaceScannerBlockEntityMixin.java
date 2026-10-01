@@ -1,120 +1,111 @@
 package com.tfmgtweaks.mixin;
 
-import com.drmangotea.tfmg.config.TFMGConfigs;
+import com.drmangotea.tfmg.base.TFMGUtils;
 import com.drmangotea.tfmg.content.machinery.oil_processing.surface_scanner.SurfaceScannerBlockEntity;
-import com.tfmgtweaks.compat.SableIntegration;
-import com.tfmgtweaks.config.TFMGTweaksConfig;
+import com.drmangotea.tfmg.integration.sable.SurfaceScannerSable;
+import com.tfmgtweaks.content.oilrock.OilRockBlock;
+import com.tfmgtweaks.registry.TFMGTweaksBlocks;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
-import net.neoforged.fml.ModList;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * TFMG's own hasOil() only checks a single fixed Y level, so it can
- * never find Oil Rock, which spawns across a configurable range --
- * falls back to scanning that range (strided, not exhaustive) if the
- * original check finds nothing. Also resolves a Sable sub-level's local
- * position to the real world one before scanning, since hasOil()
- * otherwise checks the wrong coordinates there.
- */
+/** Adds Oil Rock to TFMG:CE's scanner, which only detects chunks with a FLUID_RESERVOIR. */
 @Mixin(SurfaceScannerBlockEntity.class)
 public abstract class SurfaceScannerBlockEntityMixin {
+    @Unique
+    private static final int TFMGTWEAKS$GRID_SIZE = 7;
 
-    private static final TagKey<Block> SURFACE_SCANNER_FINDABLE_TAG = TagKey.create(
-            Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("tfmg", "surface_scanner_findable"));
+    @Unique
+    private static final int TFMGTWEAKS$GRID_OFFSET = TFMGTWEAKS$GRID_SIZE / 2;
 
-    @Inject(method = "hasOil", at = @At("HEAD"), cancellable = true)
-    private void tfmgtweaks$scanFromSableSubLevel(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
-        if (!ModList.get().isLoaded("sable")) {
-            return;
-        }
-        SurfaceScannerBlockEntity self = (SurfaceScannerBlockEntity) (Object) this;
-        BlockPos worldPos = SableIntegration.resolveWorldPosition(self, pos);
-        if (worldPos == null) {
-            return;
-        }
-        Level level = self.getLevel();
-        if (level == null) {
-            return;
-        }
-        // Sable's own compatibility goal: getLevel() reports the real world
-        // even on a sub-level, so we scan `level` at the transformed
-        // world position instead of the sub-level-local one.
-        cir.setReturnValue(tfmgtweaks$scanBothRanges(level, worldPos));
-    }
+    @Shadow
+    public boolean[][] grid;
 
-    @Inject(method = "hasOil", at = @At("TAIL"), cancellable = true)
-    private void tfmgtweaks$scanOilRockRange(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+    @Shadow
+    private BlockPos nearestDeposit;
+
+    @Shadow
+    private long lastScanTick;
+
+    @Unique
+    private long tfmgtweaks$seenOilRockChanges = -1;
+
+    @Inject(method = "findDeposits", at = @At("TAIL"))
+    private void tfmgtweaks$scanForOilRock(CallbackInfo ci) {
         SurfaceScannerBlockEntity self = (SurfaceScannerBlockEntity) (Object) this;
         Level level = self.getLevel();
-        if (level == null) {
+        if (level == null || grid == null || grid.length < TFMGTWEAKS$GRID_SIZE) {
             return;
         }
-        if (tfmgtweaks$scanOilRockHeightRange(level, pos)) {
-            cir.setReturnValue(true);
-        }
-    }
+        BlockPos scannerPos = SurfaceScannerSable.getActualPosition(self);
+        ChunkPos centerChunk = new ChunkPos(scannerPos);
 
-    /**
-     * Used only from the Sable redirect path, since that path bypasses
-     * the original method (and therefore TFMG's own single-level check)
-     * entirely -- replicates that check plus our own range fallback
-     * against an arbitrary level/position pair.
-     */
-    private boolean tfmgtweaks$scanBothRanges(Level level, BlockPos pos) {
-        ChunkPos chunkPos = new ChunkPos(pos);
-        if (!level.hasChunk(chunkPos.x, chunkPos.z)) {
-            // Never force-load/generate a chunk just to scan it.
-            return false;
-        }
-        ChunkAccess chunk = level.getChunk(pos);
-        int scanDepth = TFMGConfigs.common().machines.surfaceScannerScanDepth.get();
-        AABB originalArea = new AABB(chunk.getPos().getMiddleBlockPosition(scanDepth).north().west())
-                .inflate(7, 0, 7);
-        for (BlockState state : chunk.getBlockStates(originalArea).toList()) {
-            if (state.is(SURFACE_SCANNER_FINDABLE_TAG)) {
-                return true;
-            }
-        }
-        return tfmgtweaks$scanOilRockHeightRange(level, pos);
-    }
-
-    private boolean tfmgtweaks$scanOilRockHeightRange(Level level, BlockPos pos) {
-        ChunkPos chunkPos = new ChunkPos(pos);
-        if (!level.hasChunk(chunkPos.x, chunkPos.z)) {
-            return false;
-        }
-
-        int minY = Math.min(TFMGTweaksConfig.OIL_ROCK_MIN_HEIGHT.get(), TFMGTweaksConfig.OIL_ROCK_MAX_HEIGHT.get());
-        int maxY = Math.max(TFMGTweaksConfig.OIL_ROCK_MIN_HEIGHT.get(), TFMGTweaksConfig.OIL_ROCK_MAX_HEIGHT.get());
-
-        // Strided sampling (every 3rd block) rather than exhaustive --
-        // an Oil Rock cluster is at least 14 connected blocks, so a
-        // stride of 3 reliably still intersects it while cutting the
-        // check count by roughly 27x.
-        int stride = 3;
-        int minX = chunkPos.getMinBlockX();
-        int minZ = chunkPos.getMinBlockZ();
-        for (int x = minX; x <= minX + 15; x += stride) {
-            for (int z = minZ; z <= minZ + 15; z += stride) {
-                for (int y = minY; y <= maxY; y += stride) {
-                    if (level.getBlockState(new BlockPos(x, y, z)).is(SURFACE_SCANNER_FINDABLE_TAG)) {
-                        return true;
+        for (int x = 0; x < TFMGTWEAKS$GRID_SIZE; x++) {
+            for (int z = 0; z < TFMGTWEAKS$GRID_SIZE; z++) {
+                if (grid[x][z]) {
+                    continue;
+                }
+                int chunkX = centerChunk.x + x - TFMGTWEAKS$GRID_OFFSET;
+                int chunkZ = centerChunk.z + z - TFMGTWEAKS$GRID_OFFSET;
+                if (!level.hasChunk(chunkX, chunkZ)) {
+                    continue;
+                }
+                BlockPos midpoint = tfmgtweaks$scanChunkForOilRock(level, chunkX, chunkZ);
+                if (midpoint == null) {
+                    continue;
+                }
+                grid[x][z] = true;
+                if (nearestDeposit == null) {
+                    nearestDeposit = midpoint;
+                } else if (!nearestDeposit.equals(midpoint)) {
+                    float currentDistance = TFMGUtils.getDistance(scannerPos, nearestDeposit, true);
+                    float newDistance = TFMGUtils.getDistance(scannerPos, midpoint, true);
+                    if (newDistance < currentDistance) {
+                        nearestDeposit = midpoint;
                     }
                 }
             }
         }
-        return false;
+    }
+
+    /** Full-height scan of the chunk, skipping sections whose palette can't contain Oil Rock; null on a miss. */
+    @Unique
+    private static BlockPos tfmgtweaks$scanChunkForOilRock(Level level, int chunkX, int chunkZ) {
+        Block oilRock = TFMGTweaksBlocks.OIL_ROCK.get();
+        LevelChunk chunk = level.getChunk(chunkX, chunkZ);
+        for (LevelChunkSection section : chunk.getSections()) {
+            if (section == null || section.hasOnlyAir() || !section.getStates().maybeHas(state -> state.is(oilRock))) {
+                continue;
+            }
+            for (int y = 0; y < 16; y++) {
+                for (int z = 0; z < 16; z++) {
+                    for (int x = 0; x < 16; x++) {
+                        if (section.getBlockState(x, y, z).is(oilRock)) {
+                            return new ChunkPos(chunkX, chunkZ).getMiddleBlockPosition(0).north().west();
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Forces a rescan when Oil Rock has been placed or removed since the last scan. */
+    @Inject(method = "lazyTick", at = @At("HEAD"))
+    private void tfmgtweaks$rescanAfterOilRockChange(CallbackInfo ci) {
+        long changes = OilRockBlock.getChangeCount();
+        if (changes != tfmgtweaks$seenOilRockChanges) {
+            tfmgtweaks$seenOilRockChanges = changes;
+            lastScanTick = Long.MIN_VALUE;
+        }
     }
 }

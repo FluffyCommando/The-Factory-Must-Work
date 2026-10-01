@@ -8,14 +8,8 @@ import net.minecraft.world.level.levelgen.placement.PlacementContext;
 import net.minecraft.world.level.levelgen.placement.PlacementFilter;
 import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
 
-/**
- * Same idea as vanilla's minecraft:rarity_filter, but reads the chance
- * from TFMGTweaksConfig.OIL_ROCK_SPAWN_CHANCE at runtime instead of a
- * fixed JSON value, so the user can adjust spawn rate via config without
- * needing a resource pack.
- */
+/** Rarity filter with its chance read from config at runtime. */
 public class OilRockRarityFilter extends PlacementFilter {
-
     public static final OilRockRarityFilter INSTANCE = new OilRockRarityFilter();
     public static final MapCodec<OilRockRarityFilter> CODEC = MapCodec.unit(() -> INSTANCE);
 

@@ -10,22 +10,16 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Lets pump jacks recognize Oil Rock deposits, not just TFMG's own oil
- * deposit, via a redirected tag check. Also applies Oil Rock's own
- * extraction multipliers (base, plus cracked bonus) around process(),
- * zeroing miningRate if cracking is required but hasn't happened yet,
- * and depletes finite reserves afterward.
- */
+/** Lets pump jacks extract from Oil Rock, applying its extraction multipliers and finite reserves. */
 @Mixin(PumpjackBaseBlockEntity.class)
 public abstract class PumpjackBaseBlockEntityMixin {
-
     private static final TagKey<Block> OIL_DEPOSIT_BLOCKS = TagKey.create(Registries.BLOCK,
             ResourceLocation.fromNamespaceAndPath("tfmgtweaks", "oil_deposit_blocks"));
 
@@ -73,10 +67,12 @@ public abstract class PumpjackBaseBlockEntityMixin {
         if (oilRock == null) {
             return;
         }
-        // Mirror process()'s own guard: it only ever attempts a fill when
-        // there's room for the full miningRate amount, so miningRate is an
-        // accurate stand-in for what actually got pumped this tick.
-        if (self.tank.getFluidAmount() + self.miningRate > self.tank.getCapacity()) {
+        FluidTank tank = self.tank;
+        if (tank == null) {
+            return;
+        }
+        // process() only fills when there's room for the full miningRate, so that's what was pumped.
+        if (tank.getFluidAmount() + self.miningRate > tank.getCapacity()) {
             return;
         }
         if (self.miningRate <= 0) {
@@ -98,4 +94,6 @@ public abstract class PumpjackBaseBlockEntityMixin {
         BlockEntity be = level.getBlockEntity(self.deposit);
         return be instanceof OilRockBlockEntity oilRock ? oilRock : null;
     }
+
 }
+

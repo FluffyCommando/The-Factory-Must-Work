@@ -10,14 +10,8 @@ import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
 
 import java.util.stream.Stream;
 
-/**
- * Same idea as vanilla's minecraft:height_range, but reads min/max height
- * from TFMGTweaksConfig at runtime instead of a fixed JSON value, so the
- * user can adjust where Oil Rock clusters start spawning via config
- * without needing a resource pack.
- */
+/** Height range placement read from config at runtime. */
 public class OilRockHeightRangePlacement extends PlacementModifier {
-
     public static final OilRockHeightRangePlacement INSTANCE = new OilRockHeightRangePlacement();
     public static final MapCodec<OilRockHeightRangePlacement> CODEC = MapCodec.unit(() -> INSTANCE);
 

@@ -19,17 +19,19 @@ import net.minecraft.world.level.material.Fluid;
 
 import org.jetbrains.annotations.Nullable;
 
-/**
- * A new underground-spawning oil deposit, drop-in equivalent for pump
- * jack extraction with an added fracking mechanic: Steam speeds up
- * extraction, decaying continuously rather than a one-time unlock (see
- * OilRockBlockEntity). CRACKED is a real blockstate property so the
- * cracked/uncracked textures actually render.
- */
-public class OilRockBlock extends BaseEntityBlock {
+import java.util.concurrent.atomic.AtomicLong;
 
+/** Oil Rock: an underground oil deposit that can be cracked with Steam for faster extraction. */
+public class OilRockBlock extends BaseEntityBlock {
     public static final BooleanProperty CRACKED = BooleanProperty.create("cracked");
     public static final MapCodec<OilRockBlock> CODEC = simpleCodec(OilRockBlock::new);
+
+    private static final AtomicLong CHANGE_COUNT = new AtomicLong();
+
+    /** Counts Oil Rock placements and removals in loaded worlds, so scanners know when to rescan. */
+    public static long getChangeCount() {
+        return CHANGE_COUNT.get();
+    }
 
     public OilRockBlock(Properties properties) {
         super(properties);
@@ -74,7 +76,18 @@ public class OilRockBlock extends BaseEntityBlock {
     }
 
     @Override
+    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
+        super.onPlace(state, level, pos, oldState, movedByPiston);
+        if (!oldState.is(this)) {
+            CHANGE_COUNT.incrementAndGet();
+        }
+    }
+
+    @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock())) {
+            CHANGE_COUNT.incrementAndGet();
+        }
         boolean genuinelyMined = !state.is(newState.getBlock()) && newState.isAir();
         super.onRemove(state, level, pos, newState, isMoving);
         if (genuinelyMined && !level.isClientSide) {
@@ -86,5 +99,4 @@ public class OilRockBlock extends BaseEntityBlock {
         }
     }
 }
-
 

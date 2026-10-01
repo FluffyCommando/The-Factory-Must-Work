@@ -9,15 +9,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * See GeneratorBlockEntityMixin for full context. Plays
- * while the transformer is actively passing power (getOutputPower() > 0)
- * rather than kinetic speed, since this transformer isn't kinetic-driven --
- * it converts voltage between two electric networks.
- */
+/** Plays the restored electric hum while the transformer passes power. */
 @Mixin(TransformerBlockEntity.class)
 public abstract class TransformerBlockEntityMixin {
-
     @Unique
     private int tfmgtweaks$soundTimer = 0;
 

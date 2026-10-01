@@ -9,18 +9,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Rotor/stator generators, transformers, and electric
- * switches lost their ambient sound during TFMG's 1.0 -> 1.2 rewrite --
- * both the sound events and every playSound() call site were removed,
- * while engines kept theirs intact. This restores the generator hum for
- * the regular generator, using the recovered sound event (see
- * TFMGTweaksSoundEvents) and a periodic-trigger pattern matching how
- * RegularEngineBlockEntity still plays its own sound today.
- */
+/** Plays the restored generator hum while the generator turns. */
 @Mixin(GeneratorBlockEntity.class)
 public abstract class GeneratorBlockEntityMixin {
-
     @Unique
     private int tfmgtweaks$soundTimer = 0;
 

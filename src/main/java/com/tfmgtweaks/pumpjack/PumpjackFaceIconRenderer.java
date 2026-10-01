@@ -18,15 +18,8 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
-/**
- * Draws a small, floating bucket icon outside each pump jack face a
- * player has wrenched to a role -- oil, waste, or Steam's own bucket.
- * Unassigned faces show nothing. Uses ItemRenderer.renderStatic(), the
- * same API Create uses for rendering a baked item model at an arbitrary
- * transform.
- */
+/** Draws a floating bucket icon outside each pump jack face assigned a role. */
 public class PumpjackFaceIconRenderer implements BlockEntityRenderer<PumpjackBaseBlockEntity> {
-
     public PumpjackFaceIconRenderer(BlockEntityRendererProvider.Context context) {
     }
 
@@ -68,11 +61,7 @@ public class PumpjackFaceIconRenderer implements BlockEntityRenderer<PumpjackBas
         }
     }
 
-    /**
-     * Matches vanilla item frames' own per-face convention: default
-     * orientation faces south (no rotation needed), rotate around Y for
-     * the other three horizontal faces, around X for up/down.
-     */
+    /** Rotates the icon to face outward from face. */
     private void applyFacingRotation(PoseStack poseStack, Direction direction) {
         switch (direction) {
             case NORTH -> poseStack.mulPose(Axis.YP.rotationDegrees(180));
@@ -81,7 +70,6 @@ public class PumpjackFaceIconRenderer implements BlockEntityRenderer<PumpjackBas
             case UP -> poseStack.mulPose(Axis.XP.rotationDegrees(270));
             case DOWN -> poseStack.mulPose(Axis.XP.rotationDegrees(90));
             case SOUTH -> {
-                // Default orientation already faces south, nothing to do.
             }
         }
     }

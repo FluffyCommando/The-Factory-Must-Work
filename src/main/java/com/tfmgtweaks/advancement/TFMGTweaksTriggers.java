@@ -3,12 +3,6 @@ package com.tfmgtweaks.advancement;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 
-/**
- * Registered directly via a plain vanilla Registry.register() call (not
- * NeoForge's own DeferredRegister), matching Create's own AllTriggers --
- * confirmed as a real, working pattern for this exact registry type.
- * register() is called once from TFMGTweaks' own constructor.
- */
 public class TFMGTweaksTriggers {
 
     public static final TFMGTweaksSimpleTrigger TANK_EXPLODED = new TFMGTweaksSimpleTrigger("tank_exploded");

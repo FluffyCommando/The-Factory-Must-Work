@@ -8,18 +8,8 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.neoforged.neoforge.fluids.BaseFlowingFluid;
 
-/**
- * Steam -- the fracking input, replacing Hot Air/Water. Structured like
- * Create's own VirtualFluid (which is what TFMG's Hot Air actually is):
- * pipeable and pumpable, but no in-world placeable block, since it's only
- * ever meant to travel through pipes into a pump jack.
- *
- * Has a real, functional bucket item despite staying non-placeable --
- * without one, there was no way to configure a fluid filter to request
- * Steam. Placing the bucket still does nothing visually.
- */
+/** Steam: pipeable only, never placeable. Used as the input for oil fracking. */
 public class SteamFluid extends BaseFlowingFluid {
-
     public static SteamFluid createSource(Properties properties) {
         return new SteamFluid(properties, true);
     }
