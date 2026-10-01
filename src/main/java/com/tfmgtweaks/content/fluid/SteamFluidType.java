@@ -10,18 +10,8 @@ import net.neoforged.neoforge.fluids.FluidType;
 
 import java.util.function.Consumer;
 
-/**
- * Steam needed a dedicated FluidType subclass to override
- * initializeClient() -- the actual hook for a fluid's client-side
- * rendering (texture, tint, fog). Plain `new FluidType(...)` has no
- * client rendering setup at all. Overrides match TFMG's own GasFluidType.
- *
- * Reuses vanilla's still/flowing water textures rather than a new
- * animated one -- a light, pale tint is what actually differentiates
- * Steam visually.
- */
+/** Fluid type for Steam, providing its client-side rendering. */
 public class SteamFluidType extends FluidType {
-
     private static final ResourceLocation STILL_TEXTURE =
             ResourceLocation.withDefaultNamespace("block/water_still");
     private static final ResourceLocation FLOWING_TEXTURE =

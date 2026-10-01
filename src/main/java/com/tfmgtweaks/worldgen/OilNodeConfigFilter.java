@@ -8,17 +8,8 @@ import net.minecraft.world.level.levelgen.placement.PlacementContext;
 import net.minecraft.world.level.levelgen.placement.PlacementFilter;
 import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
 
-/**
- * Same idea as Create's own ConfigPlacementFilter, which TFMG's own oil
- * placed features already reference for a global "disable worldgen"
- * switch -- this is our own equivalent, gating TFMG's bedrock-locked oil
- * nodes behind our own oilRockReplacesOldOilNodes config option.
- *
- * Applied via a resource override of TFMG's own placed features, not a
- * mixin -- placement modifier lists are just data.
- */
+/** Placement filter that disables TFMG's own oil nodes when Oil Rock replaces them (config). */
 public class OilNodeConfigFilter extends PlacementFilter {
-
     public static final OilNodeConfigFilter INSTANCE = new OilNodeConfigFilter();
     public static final MapCodec<OilNodeConfigFilter> CODEC = MapCodec.unit(() -> INSTANCE);
 

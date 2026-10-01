@@ -11,19 +11,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.function.Consumer;
 
-/**
- * Placing a large switch spams the log with a Flywheel
- * NullPointerException every time you enter/exit render distance.
- *
- * Root cause: LargeSwitchVisual's constructor leaves `shaft` null for
- * any block that isn't the main part, but _delete(), update(), and
- * collectCrumblingInstances() all use it unconditionally. The crash is
- * specifically in _delete() (torn down on every visual, hence frequent),
- * but the others share the same unguarded pattern.
- */
+/** Skips updates for large switch parts without a shaft, fixing log spam on render distance changes. */
 @Mixin(LargeSwitchVisual.class)
 public abstract class LargeSwitchVisualMixin {
-
     @Shadow
     protected final RotatingInstance shaft = null;
 

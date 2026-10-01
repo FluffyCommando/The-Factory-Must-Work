@@ -8,18 +8,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * TFMG's own light-color logic uses fixed transition widths (30/60
- * ticks) never scaled to the configured timer length -- at the default
- * 180-tick setting, the green condition becomes mathematically
- * unreachable (`timer < 60 && timer > 60`). Recomputes `light` after
- * tick() runs, with transition widths clamped to a safe fraction of the
- * half-cycle, matching the original result for any timer long enough
- * that the clamp never engages.
- */
+/** Scales the light's transition widths to the timer length, so green is reachable at short timers. */
 @Mixin(TrafficLightBlockEntity.class)
 public abstract class TrafficLightGreenPhaseFixMixin {
-
     @Shadow
     protected ScrollValueBehaviour timerLength;
 

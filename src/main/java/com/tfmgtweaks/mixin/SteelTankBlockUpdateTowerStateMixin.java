@@ -10,16 +10,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * SteelTankBlock.updateTowerState() calls getControllerBE() up to five
- * times without checking for null, which it legitimately can be -- e.g.
- * while a Create contraption carrying a distillation tower is being
- * assembled. One early-cancel guard covers all five unsafe call sites
- * at once, rather than patching each individually.
- */
+/** Cancels updateTowerState() when the controller is null, e.g. during contraption assembly. */
 @Mixin(SteelTankBlock.class)
 public abstract class SteelTankBlockUpdateTowerStateMixin {
-
     @Inject(method = "updateTowerState", at = @At("HEAD"), cancellable = true)
     private static void tfmgtweaks$guardNullController(Level pLevel, BlockPos tankPos, boolean assemble,
                                                          boolean simulate, CallbackInfoReturnable<Boolean> cir) {

@@ -1,0 +1,31 @@
+{
+  "type": "tfmg:vat_machine_recipe",
+  "allowed_vat_types": [
+    "tfmg:cast_iron_vat",
+    "tfmg:steel_vat",
+    "tfmg:firebrick_lined_vat"
+  ],
+  "ingredients": [
+    {
+      "type": "neoforge:single",
+      "amount": 2000,
+      "fluid": "tfmgtweaks:sulfur_dioxide"
+    },
+    {
+      "type": "neoforge:single",
+      "amount": 2000,
+      "fluid": "tfmg:carbon_dioxide"
+    }
+  ],
+  "machines": [
+    "tfmg:centrifuge"
+  ],
+  "min_size": 2,
+  "processing_time": 600,
+  "results": [
+    {
+      "count": 4,
+      "id": "minecraft:gunpowder"
+    }
+  ]
+}

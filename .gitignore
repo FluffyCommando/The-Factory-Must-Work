@@ -5,6 +5,4 @@ out/
 .idea/
 *.iml
 .vscode/
-
-# Don't commit the TFMG jar you build against locally
 /libs/*.jar

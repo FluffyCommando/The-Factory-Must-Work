@@ -4,16 +4,8 @@ import com.simibubi.create.foundation.fluid.CombinedTankWrapper;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 
-/**
- * Same idea as VatInputOnlyItemWrapper but for fluids (see
- * VatBlockEntityCapabilityFixMixin): reports both tanks combined, but
- * fill() only writes to input and drain() only reads from output --
- * fully symmetric isolation. Without the drain() isolation, a naive
- * combined-handler search across both tanks together could reject
- * extraction whenever the other tank also held fluid.
- */
+/** Vat fluid handler that fills only the input tanks and drains only the output tanks. */
 public class VatInputOnlyFluidWrapper implements IFluidHandler {
-
     private final IFluidHandler input;
     private final IFluidHandler output;
     private final CombinedTankWrapper combined;

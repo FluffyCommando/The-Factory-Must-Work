@@ -7,16 +7,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * A fully reinforced blast furnace reverts to "regular" the moment an
- * item is pushed in, since isReinforced is only recomputed inside
- * getSize() when the input becomes non-empty -- if a wall position's
- * chunk hasn't loaded at that exact moment, it undercounts permanently.
- * Same self-healing pattern as SteelTankBlockEntityLazyTickMixin: also
- * calls getSize() from lazyTick().
+ * Recomputes the furnace size every lazyTick, so a reinforced furnace doesn't revert to regular
+ * when a wall chunk wasn't loaded at the time.
  */
 @Mixin(BlastFurnaceOutputBlockEntity.class)
 public abstract class BlastFurnaceOutputBlockEntityMixin {
-
     @Inject(method = "lazyTick", at = @At("HEAD"))
     private void tfmgtweaks$reevaluateReinforcementOnLazyTick(CallbackInfo ci) {
         BlastFurnaceOutputBlockEntity self = (BlastFurnaceOutputBlockEntity) (Object) this;

@@ -22,19 +22,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Wearing goggles blocks the multimeter overlay entirely -- TFMG's own
- * GoggleOverlayRendererMixin gates its whole tooltip on
- * `isElectricBlock && !hasGoggles`, which looks like a typo for
- * !holdsMultimeter (the inner check already handles that correctly).
- * Rather than modify TFMG's own injected code (an earlier @Redirect
- * attempt was fragile and had no visible effect), this adds an
- * independent injection that only activates for the goggles-worn gap,
- * rendering the same tooltip and cancelling the rest of renderOverlay.
- */
+/** Shows the multimeter overlay while wearing goggles, which TFMG's own overlay check blocks. */
 @Mixin(GoggleOverlayRenderer.class)
 public abstract class GoggleOverlayRendererMultimeterFixMixin {
-
     @Inject(method = "renderOverlay", at = @At("HEAD"), cancellable = true, remap = false)
     private static void tfmgtweaks$renderMultimeterEvenWithGoggles(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
@@ -69,9 +59,7 @@ public abstract class GoggleOverlayRendererMultimeterFixMixin {
         int posX = width / 2;
         int posY = height / 2;
 
-        // Standard vanilla tooltip colors -- same ones GuiGraphics itself
-        // uses internally, avoids depending on Create's config-driven
-        // color/fade logic.
+        // Vanilla tooltip colors.
         RemovedGuiUtils.drawHoveringText(guiGraphics, tooltip, posX, posY, width, height, -1,
                 0xF0100010, 0x505000FF, 0x5028007F, mc.font);
 

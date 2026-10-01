@@ -10,17 +10,11 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Engines crash while a Create contraption carrying them is being
- * assembled: hasTwoShafts() calls getValue(ENGINE_STATE) on a
- * neighboring segment without checking it still has that property --
- * during assembly that position can legitimately be air for a tick, and
- * getValue() throws rather than returning null. Redirects it to check
- * hasProperty() first, correctly falling through to "not a valid second
- * shaft" instead.
+ * Fixes a crash when an engine is assembled onto a contraption: hasTwoShafts() read ENGINE_STATE
+ * from a neighbor that may not have it.
  */
 @Mixin(AbstractSmallEngineBlockEntity.class)
 public abstract class AbstractSmallEngineBlockEntityMixin {
-
     @Inject(method = "hasTwoShafts", at = @At("HEAD"), cancellable = true)
     private void tfmgtweaks$guardNullController(CallbackInfoReturnable<Boolean> cir) {
         AbstractSmallEngineBlockEntity self = (AbstractSmallEngineBlockEntity) (Object) this;

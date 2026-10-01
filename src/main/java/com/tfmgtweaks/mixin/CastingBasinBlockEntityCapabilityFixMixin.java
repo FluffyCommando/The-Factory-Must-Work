@@ -6,16 +6,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * CastingBasinBlockEntity.tick() empties its tank when a recipe
- * finishes but never invalidates capabilities, so a pipe that cached
- * "tank full" never learns it emptied -- a casting basin stops
- * accepting input after the first recipe. Runs at HEAD, not TAIL, since
- * tick() has multiple early returns.
- */
+/** Invalidates capabilities every tick so pipes see the basin empty after a recipe. */
 @Mixin(CastingBasinBlockEntity.class)
 public abstract class CastingBasinBlockEntityCapabilityFixMixin {
-
     @Inject(method = "tick", at = @At("HEAD"))
     private void tfmgtweaks$invalidateCapabilitiesOnTick(CallbackInfo ci) {
         CastingBasinBlockEntity self = (CastingBasinBlockEntity) (Object) this;

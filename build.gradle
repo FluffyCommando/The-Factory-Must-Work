@@ -58,6 +58,7 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 repositories {
     maven { url = "https://maven.createmod.net" } // Create, Ponder, Flywheel
     maven { url = "https://maven.blamejared.com" } // JEI
+    maven { url = "https://mvn.devos.one/snapshots" } // Registrate
 }
 
 dependencies {
@@ -68,6 +69,13 @@ dependencies {
 
     // Same artifact TFMG itself depends on.
     compileOnly("mezz.jei:jei-${jei_minecraft_version}-neoforge:${jei_version}")
+
+    // Registrate -- TFMG's own registration library. Needed at compile
+    // time to resolve the generic return types of its BlockEntry/
+    // FluidEntry/etc. wrappers (e.g. TFMGFluids.CRUDE_OIL.get()); TFMG
+    // already carries the real thing at runtime, so compileOnly avoids
+    // bundling or shadowing it ourselves.
+    compileOnly("com.tterrag.registrate:Registrate:${registrate_version}")
 
     // TFMG, as a plain jar dropped into /libs.
     implementation fileTree(dir: 'libs', include: ['tfmg*.jar'])

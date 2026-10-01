@@ -4,7 +4,6 @@ import com.drmangotea.tfmg.config.TFMGConfigs;
 import com.drmangotea.tfmg.content.machinery.oil_processing.surface_scanner.SurfaceScannerBlockEntity;
 import com.tfmgtweaks.api.ITFMGTweaksSurfaceScannerSignal;
 import com.tfmgtweaks.compat.SableIntegration;
-import com.tfmgtweaks.compat.SurfaceScannerCompat;
 import com.tfmgtweaks.config.TFMGTweaksConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -16,16 +15,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
- * TFMG's own scanner re-scans every lazy tick unconditionally, a
- * visible stutter since the scan only runs client-side. Redirects that
- * call to only actually scan once SURFACE_SCANNER_RESCAN_INTERVAL_TICKS
- * has elapsed or the scanner's (Sable-aware) position changed. Also
- * maintains a server-side scan grid for redstone output, since TFMG's
- * own grid field is only populated client-side.
+ * Only rescans after the configured interval or when the scanner moves, and keeps a server-side grid
+ * for redstone output.
  */
 @Mixin(SurfaceScannerBlockEntity.class)
 public abstract class SurfaceScannerBlockEntityRescanThrottleMixin implements ITFMGTweaksSurfaceScannerSignal {
-
     @Unique
     private long tfmgtweaks$lastScanTick = Long.MIN_VALUE;
 
@@ -69,12 +63,10 @@ public abstract class SurfaceScannerBlockEntityRescanThrottleMixin implements IT
             for (int z = 0; z < 5; z++) {
                 BlockPos checkPos = new BlockPos(
                         basePos.getX() + (x - 2) * 16, scanDepth, basePos.getZ() + (z - 2) * 16);
-                tfmgtweaks$serverGrid[x][z] = SurfaceScannerCompat.hasOil(self, level, checkPos);
+                tfmgtweaks$serverGrid[x][z] = self.hasOil(checkPos);
             }
         }
-        // The signal output may have just changed -- let adjacent redstone
-        // components (comparators, dust, etc.) know rather than waiting
-        // for some unrelated neighbor update to notice.
+        // Notify neighbors in case the redstone output changed.
         level.updateNeighborsAt(basePos, self.getBlockState().getBlock());
     }
 
@@ -89,7 +81,7 @@ public abstract class SurfaceScannerBlockEntityRescanThrottleMixin implements IT
         return self.getBlockPos();
     }
 
-    /** Nearest detected deposit in this direction, mapped to signal strength -- closer is stronger. */
+    /** Signal strength for the nearest deposit in this direction; closer is stronger. */
     @Override
     public int tfmgtweaks$getSignalForDirection(Direction direction) {
         int bestDistance = Integer.MAX_VALUE;

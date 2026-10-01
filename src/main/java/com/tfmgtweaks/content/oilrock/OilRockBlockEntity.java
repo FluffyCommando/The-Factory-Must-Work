@@ -27,16 +27,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Oil rocks form connected deposits sharing one pool of reserves/cracking
- * progress via a controller/member pattern (established at worldgen time
- * by OilRockFeature). controller is null on the controller itself;
- * members and reserves/cracking state are only meaningful there.
- * Fracking (via PumpjackFrackingWrapper) isn't permanent -- fluidAbsorbed
- * decays continuously, so Steam has to keep outpacing decay.
- */
+/** Oil Rock blocks form a deposit sharing one pool of reserves and cracking progress through a controller. */
 public class OilRockBlockEntity extends BlockEntity implements IHaveGoggleInformation {
-
     @Nullable
     private BlockPos controller;
     private List<BlockPos> members = new ArrayList<>();
@@ -44,13 +36,6 @@ public class OilRockBlockEntity extends BlockEntity implements IHaveGoggleInform
     private int oilReserves;
     private int fluidAbsorbed = 0;
     private boolean cracked = false;
-
-    /**
-     * Ticks since addFrackingProgress() last received a positive amount
-     * -- resets even if the deposit was already at cap, since actively
-     * being fed should prevent decay regardless. Not saved to NBT: a
-     * fresh 0 after reload is a harmless, conservative default.
-     */
     private int ticksSinceLastFed = 0;
 
     public OilRockBlockEntity(BlockPos pos, BlockState state) {
@@ -58,7 +43,7 @@ public class OilRockBlockEntity extends BlockEntity implements IHaveGoggleInform
         oilReserves = TFMGTweaksConfig.OIL_ROCK_RESERVES.get();
     }
 
-    /** Only the controller decays/updates -- members hold no real state. */
+    /** Only the controller updates; members hold no state of their own. */
     public void tick() {
         if (!isController() || level == null || level.isClientSide) {
             return;
@@ -79,10 +64,7 @@ public class OilRockBlockEntity extends BlockEntity implements IHaveGoggleInform
         updateCrackedState();
     }
 
-    /**
-     * Called by OilRockFeature right after placing every block in a
-     * cluster. `allMembers` includes this block's own position.
-     */
+    /** Called by OilRockFeature after placing a cluster; allMembers includes this position. */
     public void initializeAsController(List<BlockPos> allMembers) {
         this.controller = null;
         this.members = new ArrayList<>(allMembers);
@@ -100,7 +82,7 @@ public class OilRockBlockEntity extends BlockEntity implements IHaveGoggleInform
         return controller == null;
     }
 
-    /** Resolves to the block holding this deposit's shared state; self-promotes if the stored controller is gone. */
+    /** Returns the deposit's controller, promoting this block if the stored controller is gone. */
     public OilRockBlockEntity getControllerBE() {
         if (isController()) {
             return this;
@@ -120,13 +102,7 @@ public class OilRockBlockEntity extends BlockEntity implements IHaveGoggleInform
         return getControllerBE().oilReserves;
     }
 
-    /**
-     * Adds to this deposit's shared cracking progress, capped at the
-     * fluidToFullyCrack threshold. Continued feeding after cracking is
-     * needed to counteract decay (see tick()) and stay cracked.
-     *
-     * @return the amount actually accepted (0 if already at the cap).
-     */
+    /** Adds to the deposit's cracking progress, capped at fluidToFullyCrack. */
     public int addFrackingProgress(int amount) {
         OilRockBlockEntity controllerBE = getControllerBE();
         if (amount <= 0) {
@@ -145,14 +121,7 @@ public class OilRockBlockEntity extends BlockEntity implements IHaveGoggleInform
         return accepted;
     }
 
-    /**
-     * Removes up to `amount` from the shared deposit's remaining reserves.
-     * If this depletes the deposit, every member block in the cluster is
-     * converted to stone (the whole vein is spent, not just whichever
-     * block a pump jack happened to be connected to).
-     *
-     * @return true if this depleted the reserves to zero or below.
-     */
+    /** Removes up to amount from the deposit's reserves, turning the whole cluster to stone once empty. */
     public boolean depleteReserves(int amount) {
         OilRockBlockEntity controllerBE = getControllerBE();
         controllerBE.oilReserves -= amount;
@@ -173,7 +142,6 @@ public class OilRockBlockEntity extends BlockEntity implements IHaveGoggleInform
         }
     }
 
-    /** Re-derives `cracked` from fluidAbsorbed; only touches block state (on every member) when it flips. */
     private void updateCrackedState() {
         boolean shouldBeCracked = fluidAbsorbed >= TFMGTweaksConfig.OIL_ROCK_FLUID_TO_FULLY_CRACK.get();
         if (shouldBeCracked == cracked) {
@@ -190,12 +158,7 @@ public class OilRockBlockEntity extends BlockEntity implements IHaveGoggleInform
             }
         }
         setChanged();
-        // Only on the false-to-true transition, not the reverse (which
-        // isn't currently reachable, but this reads correctly either
-        // way) -- awards to nearby players rather than threading a
-        // specific player reference through the whole pump jack call
-        // chain, since fracking is a passive, machine-driven process
-        // with no single player genuinely "responsible" for it.
+        
         if (cracked && level instanceof ServerLevel serverLevel) {
             AABB range = new AABB(getBlockPos()).inflate(32);
             for (ServerPlayer player : serverLevel.getEntitiesOfClass(ServerPlayer.class, range)) {

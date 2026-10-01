@@ -7,18 +7,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-/**
- * IElectric's onConnected() and updateUnpowered() both have the same
- * blockPos1-vs-blockPos2 confusion CableConnectorBlockEntity has --
- * onConnected() compares with `==` against a freshly-constructed
- * position (always false), and updateUnpowered() doesn't check at all.
- * Both corrected to read whichever endpoint isn't this block's own
- * position. require = 0 on both, since CE rewrote this logic
- * differently and no longer has these exact field accesses to redirect.
- */
+/** Reads whichever cable endpoint isn't this block in onConnected() and updateUnpowered(). */
 @Mixin(IElectric.class)
 public interface IElectricConnectionEndpointFixMixin {
-
     @Redirect(
         require = 0,
         method = "onConnected",

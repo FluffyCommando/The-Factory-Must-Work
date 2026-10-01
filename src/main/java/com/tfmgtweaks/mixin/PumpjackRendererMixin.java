@@ -18,37 +18,21 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * The pump jack's crank/hammer/head ropes are drawn procedurally, the
- * same technique vanilla uses for animal leads: a strip of quads along
- * a parabolic sag curve. This widens the ribbon, adds a second ribbon
- * crossed 90 degrees for thickness, subdivides each sample into finer
- * ones, blends configurable start/end offsets, and redraws the
- * alternating stripe pattern to fake a twisted-rope look.
- */
+/** Draws thicker, twisted-looking pump jack ropes. */
 @Mixin(PumpjackRenderer.class)
 public abstract class PumpjackRendererMixin {
-
-    // Vanilla lead width is 0.025F; 6x (~0.15 units) per ribbon.
+    // 6x vanilla lead width per ribbon.
     private static final float TFMGTWEAKS$ROPE_THICKNESS_MULTIPLIER = 6.0F;
 
-    // How many sub-segments to draw per original segment. 24 original
-    // segments x 4 = 96 total.
+    // Sub-segments drawn per original segment.
     private static final int TFMGTWEAKS$RESOLUTION = 4;
 
-    // Stripe settings (see class doc, point 3).
     private static final int TFMGTWEAKS$STRIPE_COUNT = 12;
     private static final float TFMGTWEAKS$STRIPE_DARK_FACTOR = 0.7F;
     private static final float TFMGTWEAKS$STRIPE_PHASE_OFFSET = 0.5F;
     private static final float TFMGTWEAKS$ROPE_BASE_COLOR = 0.1F;
 
-    // Attach-point offsets, X/Y/Z per (start, end) per rope per variant.
-    // t=0/"start" is inferred to be the lower/mechanism-side anchor and
-    // t=1/"end" the higher one -- not visually confirmed, so verify
-    // against what you see and swap if start/end read backwards. X/Z are
-    // relative to the pump jack's own facing. All default to 0 (stock
-    // placement). CRANK_LINK_*_X is for one of the two crank ropes; the
-    // other gets X negated automatically (mirror images of each other).
+    // Rope attach-point offsets relative to the pump jack's facing; the second crank rope mirrors X.
     private static final float TFMGTWEAKS$CRANK_LINK_START_OFFSET_X = 0.0F;
     private static final float TFMGTWEAKS$CRANK_LINK_START_OFFSET_Y = 0.0F;
     private static final float TFMGTWEAKS$CRANK_LINK_START_OFFSET_Z = 0.0F;
@@ -74,9 +58,7 @@ public abstract class PumpjackRendererMixin {
     private static final float TFMGTWEAKS$HEAD_LINK_END_OFFSET_Y_LARGE = 0.0F;
     private static final float TFMGTWEAKS$HEAD_LINK_END_OFFSET_Z_LARGE = 0.0F;
 
-    // Handoff from the @Inject handlers below to the static addVertexPair
-    // redirect, which has no block entity parameter of its own. Safe as
-    // static: render calls never interleave.
+    // Passes the block entity to the static addVertexPair redirect.
     @Unique
     private static float tfmgtweaks$activeStartOffsetX = 0.0F;
     @Unique
@@ -99,17 +81,14 @@ public abstract class PumpjackRendererMixin {
         return id.getPath().startsWith("large_pumpjack");
     }
 
-    // renderPumpjackLink draws the crank-to-hammer rope (called twice per
-    // frame, once per side).
+    // Crank-to-hammer rope, drawn once per side.
     @Inject(
         method = "renderPumpjackLink",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/RenderType;leash()Lnet/minecraft/client/renderer/RenderType;"))
     private void tfmgtweaks$prepareCrankLinkOffsets(boolean second, PoseStack pMatrixStack, MultiBufferSource pBuffer,
                                                       PumpjackBlockEntity be, CallbackInfo ci) {
         boolean large = tfmgtweaks$isLargeVariant(be, be.connectorPosition);
-        // the crank rope is drawn twice, once per side (second=false/true) --
-        // they're mirror images of each other, so X gets flipped for the
-        // second one instead of applying the same value to both.
+        // The second crank rope mirrors the first, so X is flipped.
         float mirrorX = second ? -1.0F : 1.0F;
         tfmgtweaks$activeStartOffsetX = mirrorX * (large ? TFMGTWEAKS$CRANK_LINK_START_OFFSET_X_LARGE : TFMGTWEAKS$CRANK_LINK_START_OFFSET_X);
         tfmgtweaks$activeStartOffsetY = large ? TFMGTWEAKS$CRANK_LINK_START_OFFSET_Y_LARGE : TFMGTWEAKS$CRANK_LINK_START_OFFSET_Y;
@@ -119,7 +98,7 @@ public abstract class PumpjackRendererMixin {
         tfmgtweaks$activeEndOffsetZ = large ? TFMGTWEAKS$CRANK_LINK_END_OFFSET_Z_LARGE : TFMGTWEAKS$CRANK_LINK_END_OFFSET_Z;
     }
 
-    // renderFrontPumpjackLink draws the hammer-to-head rope.
+    // Hammer-to-head rope.
     @Inject(
         method = "renderFrontPumpjackLink",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/RenderType;leash()Lnet/minecraft/client/renderer/RenderType;"))
@@ -149,11 +128,10 @@ public abstract class PumpjackRendererMixin {
         float scaledWidthB = widthB * TFMGTWEAKS$ROPE_THICKNESS_MULTIPLIER;
         float scaledNudgeX = nudgeX * TFMGTWEAKS$ROPE_THICKNESS_MULTIPLIER;
         float scaledNudgeZ = nudgeZ * TFMGTWEAKS$ROPE_THICKNESS_MULTIPLIER;
-        // ribbon 2's nudge is ribbon 1's nudge rotated 90 degrees
+        // Second ribbon is offset 90 degrees from the first.
         float crossNudgeX = scaledNudgeZ;
         float crossNudgeZ = -scaledNudgeX;
 
-        // t-range this call is responsible for (see the class doc for why).
         float tEnd = index / 24.0F;
         boolean isEndpoint = reverse ? (index == 24) : (index == 0);
         int steps = isEndpoint ? 1 : TFMGTWEAKS$RESOLUTION;
@@ -169,7 +147,7 @@ public abstract class PumpjackRendererMixin {
             float curveX = x * t;
             float curveY = y > 0.0F ? y * t * t : y - y * (1.0F - t) * (1.0F - t);
             float curveZ = z * t;
-            // start (t=0) / end (t=1) attach-point offset, blended linearly
+            // Attach-point offset, blended from start (t=0) to end (t=1).
             curveX += Mth.lerp(t, tfmgtweaks$activeStartOffsetX, tfmgtweaks$activeEndOffsetX);
             curveY += Mth.lerp(t, tfmgtweaks$activeStartOffsetY, tfmgtweaks$activeEndOffsetY);
             curveZ += Mth.lerp(t, tfmgtweaks$activeStartOffsetZ, tfmgtweaks$activeEndOffsetZ);

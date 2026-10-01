@@ -8,16 +8,8 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 
-/**
- * A genuine, continuous, looping sound for the rotor's hum, with
- * volume/pitch that scale with live speed each tick -- the standard
- * mechanism for this (Create's own ContinuousSound works the same way:
- * override getVolume()/getPitch() to compute fresh each call). Holds a
- * direct RotorBlockEntity reference since this class is entirely
- * client-only, constructed only from RotorSoundClientHelper.
- */
+/** Looping rotor hum whose volume and pitch follow the rotor's speed. Client-only. */
 public class RotorHumSoundInstance extends AbstractTickableSoundInstance {
-
     private final RotorBlockEntity rotor;
     private final BlockPos pos;
     private boolean activelyPlaying = true;
@@ -31,7 +23,7 @@ public class RotorHumSoundInstance extends AbstractTickableSoundInstance {
         this.relative = false;
     }
 
-    /** False once this instance has stopped itself, so RotorSoundClientHelper knows a fresh instance is needed if the rotor spins up again. */
+    /** False once stopped, so a new instance is started if the rotor spins up again. */
     public boolean isActivelyPlaying() {
         return activelyPlaying;
     }

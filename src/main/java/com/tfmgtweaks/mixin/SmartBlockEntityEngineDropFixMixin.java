@@ -9,17 +9,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Components placed in a regular or turbine engine are lost entirely
- * when broken, since neither class overrides destroy() -- pistonInventory
- * is a plain field, never registered as a Create Behaviour, unlike
- * WindingMachineBlockEntity which does override it. Mixes into
- * SmartBlockEntity#destroy() directly since RegularEngineBlockEntity
- * doesn't declare its own, scoped via instanceof.
- */
+/** Drops an engine's installed components when it's broken. */
 @Mixin(SmartBlockEntity.class)
 public abstract class SmartBlockEntityEngineDropFixMixin {
-
     @Inject(method = "destroy", at = @At("TAIL"))
     private void tfmgtweaks$dropEngineComponents(CallbackInfo ci) {
         Object self = this;

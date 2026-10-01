@@ -40,56 +40,33 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-/**
- * When an explosion destroys a block holding flammable fluid
- * (tfmg:flammable), this spills the fluid, spawns fire debris, and
- * queues a follow-up explosion for the tank it was in. The follow-up is
- * deferred to the next tick to avoid reentrancy, and chainToNearbyTanks()
- * queues nearby separate tanks explicitly rather than relying on the
- * follow-up blast's own physics to reach them.
- */
+/** Makes tanks holding flammable fluid explode when blown up, spilling fluid, fire debris and follow-up blasts. */
 @EventBusSubscriber(modid = TFMGTweaks.MOD_ID)
 public class FlammableFluidExplosions {
-
     private record PendingFuelExplosion(ServerLevel level, BlockPos pos, int flammableAmountMb, Fluid fluid,
                                          List<BlockPos> tankBlocks, IFluidHandler handler) {
     }
 
     private static final Deque<PendingFuelExplosion> PENDING = new ArrayDeque<>();
 
-    /**
-     * Every fluid handler currently in PENDING, tracked globally -- a
-     * multiblock tank's segments share one handler, and each explosion's
-     * own follow-up fires its own Detonate event, so without this a
-     * cluster of tanks could re-queue the same neighbors repeatedly.
-     * Reported directly as a server-side infinite loop from TNT hitting
-     * a tank cluster.
-     */
+    /** Every fluid handler currently queued, so connected tanks aren't queued repeatedly. */
     private static final Set<IFluidHandler> PENDING_HANDLERS =
             Collections.newSetFromMap(new IdentityHashMap<>());
 
-    /** Emergency brake against unforeseen unbounded queue growth, not a gameplay-tuning knob. */
+    /** Hard cap on queue size. */
     private static final int MAX_PENDING_EXPLOSIONS = 500;
 
-    /**
-     * Secondary explosions at random nearby spots after the main blast,
-     * for a cook-off effect. Tracked by absolute trigger tick rather
-     * than a countdown, kept in a List since delays mean the order
-     * isn't soonest-first.
-     */
+    /** Secondary explosions at random nearby spots after the main blast. */
     private record PendingSecondaryExplosion(ServerLevel level, BlockPos pos, double power, long triggerAtGameTime) {
     }
 
     private static final List<PendingSecondaryExplosion> PENDING_SECONDARY = new ArrayList<>();
 
-    /** Safety cap so a fire entity that somehow persists (e.g. falls into the void) doesn't leak memory forever. */
-    private static final int MAX_TRACKED_FIRE_AGE_TICKS = 200;
+    /** Caps on tracked falling entities. */
+    private static final int MAX_TRACKED_DEBRIS_AGE_TICKS = 200;
 
     private static final Set<FallingBlockEntity> TRACKED_FIRE_ENTITIES =
             Collections.newSetFromMap(new IdentityHashMap<>());
-
-    /** Same cap, same reasoning, for the tracked fluid entity below. */
-    private static final int MAX_TRACKED_FLUID_AGE_TICKS = 200;
 
     private record TrackedFluid(FallingBlockEntity entity, BlockState blockState) {
     }
@@ -97,7 +74,7 @@ public class FlammableFluidExplosions {
     private static final Set<TrackedFluid> TRACKED_FLUID_ENTITIES =
             Collections.newSetFromMap(new IdentityHashMap<>());
 
-    /** Total flammable fluid a handler holds and which fluid it is, shared by both scan entry points. */
+    /** Total flammable fluid a handler holds and which fluid it is. */
     private record FlammableContents(int amountMb, Fluid fluid) {
     }
 
@@ -109,8 +86,6 @@ public class FlammableFluidExplosions {
             if (!stack.isEmpty() && stack.getFluid().is(TFMGTagKeys.FLAMMABLE_FLUID)) {
                 total += stack.getAmount();
                 if (fluid == null) {
-                    // Multiple flammable fluids in one tank isn't a
-                    // real case -- just use whichever is found first.
                     fluid = stack.getFluid();
                 }
             }
@@ -118,11 +93,7 @@ public class FlammableFluidExplosions {
         return new FlammableContents(total, fluid);
     }
 
-    /**
-     * Checks a position for a fluid handler holding enough flammable
-     * fluid to queue its own explosion, deduplicating against handlers
-     * already queued this scan.
-     */
+    /** Queues an explosion for a handler at pos holding enough flammable fluid, skipping ones already queued. */
     private static void queueIfFlammableTank(ServerLevel level, BlockPos pos,
             Set<IFluidHandler> alreadyQueuedHandlers, int minAmount) {
         if (PENDING.size() >= MAX_PENDING_EXPLOSIONS) {
@@ -132,9 +103,6 @@ public class FlammableFluidExplosions {
         if (handler == null || !alreadyQueuedHandlers.add(handler)) {
             return;
         }
-        // Global check, separate from the local alreadyQueuedHandlers
-        // set above (which only ever covers this one scan call) -- see
-        // PENDING_HANDLERS' own doc for why both are needed.
         if (!PENDING_HANDLERS.add(handler)) {
             return;
         }
@@ -145,22 +113,12 @@ public class FlammableFluidExplosions {
                     tankBlocks, handler));
             awardTankExplodedToNearbyPlayers(level, pos);
         } else {
-            // Didn't actually qualify (too little flammable fluid) --
-            // release it immediately rather than leaving it permanently
-            // marked as pending when nothing was ever actually queued
-            // for it.
+            // Releases the handler if it holds too little flammable fluid to explode.
             PENDING_HANDLERS.remove(handler);
         }
     }
 
-    /**
-     * Awards the hidden "tank exploded" advancement to every player
-     * within 32 blocks -- sidesteps precisely attributing which specific
-     * player (if any) actually caused the explosion, which is genuinely
-     * ambiguous (TNT placed by one player, ignited by redstone, a
-     * creeper wandering nearby, etc.) and not worth guessing at for a
-     * hidden, low-stakes advancement.
-     */
+    /** Awards the hidden "tank exploded" advancement to every player within 32 blocks. */
     private static void awardTankExplodedToNearbyPlayers(ServerLevel level, BlockPos pos) {
         AABB range = new AABB(pos).inflate(32);
         for (ServerPlayer player : level.getEntitiesOfClass(ServerPlayer.class, range)) {
@@ -192,15 +150,7 @@ public class FlammableFluidExplosions {
         }
     }
 
-    /**
-     * A multi-block fluid tank is a width x height x width region from
-     * its controller's position, matching Create's own
-     * FluidTankBlockEntity#onFluidStackChanged() shape. Called from
-     * onExplosionDetonate() itself, not trigger() (a tick later), since
-     * the block entity is still guaranteed to exist at detonate time.
-     * Returns an empty list, not null, for anything that isn't this kind
-     * of tank.
-     */
+    /** Every block position of a multiblock fluid tank, or an empty list for anything else. */
     private static List<BlockPos> collectFluidTankBlocks(ServerLevel level, BlockPos pos) {
         if (!(level.getBlockEntity(pos) instanceof FluidTankBlockEntity tankBE)) {
             return List.of();
@@ -212,9 +162,7 @@ public class FlammableFluidExplosions {
         BlockPos controllerPos = controllerBE.getController();
         int width = controllerBE.getWidth();
         int height = controllerBE.getHeight();
-        // Sanity bound, not a real gameplay limit -- guards against a
-        // corrupted or out-of-range value turning this into an
-        // effectively unbounded loop.
+        // Guards against corrupted tank dimensions.
         if (width <= 0 || height <= 0 || width > 32 || height > 32) {
             return List.of();
         }
@@ -229,7 +177,7 @@ public class FlammableFluidExplosions {
         return blocks;
     }
 
-    /** Same fix as FluidIgnition's onServerStopping() -- these static sets would otherwise survive a world ending. */
+    /** Clears static state when the server stops. */
 
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
@@ -255,9 +203,6 @@ public class FlammableFluidExplosions {
                 secondaryIt.remove();
                 spawnFireDebris(secondary.level(), secondary.pos(),
                         TFMGTweaksConfig.FUEL_EXPLOSIONS_SECONDARY_FALLING_FIRE_COUNT.get());
-                // Same surroundingBlocksDamaged toggle as the main
-                // explosion -- a secondary "cook-off" blast shouldn't be
-                // block-destructive when the main one isn't either.
                 Level.ExplosionInteraction secondaryInteraction =
                         TFMGTweaksConfig.FUEL_EXPLOSIONS_SURROUNDING_BLOCKS_DAMAGED.get()
                                 ? Level.ExplosionInteraction.BLOCK
@@ -271,11 +216,8 @@ public class FlammableFluidExplosions {
         Iterator<FallingBlockEntity> fireIt = TRACKED_FIRE_ENTITIES.iterator();
         while (fireIt.hasNext()) {
             FallingBlockEntity fireEntity = fireIt.next();
-            if (!fireEntity.isAlive() || fireEntity.tickCount > MAX_TRACKED_FIRE_AGE_TICKS) {
-                // Either vanilla already landed it normally (on solid
-                // ground, the common case), or it's been falling long
-                // enough that something unusual is going on -- either
-                // way, stop watching it.
+            if (!fireEntity.isAlive() || fireEntity.tickCount > MAX_TRACKED_DEBRIS_AGE_TICKS) {
+                // Stops tracking fire debris once it lands or has fallen too long.
                 fireIt.remove();
                 continue;
             }
@@ -288,14 +230,7 @@ public class FlammableFluidExplosions {
             if (!isFlammable(level.getFluidState(currentPos))) {
                 continue;
             }
-            // Currently occupying a position with flammable fluid --
-            // intercept before it falls straight through: remove the
-            // falling entity and mark that fluid position as burning in
-            // its place (see FluidIgnition's class doc for why this
-            // isn't an actual fire block placement -- vanilla's own
-            // FireBlock doesn't consider fluid valid support, and a
-            // floating fire block a full block above a flat surface
-            // doesn't read as "the fluid is burning" visually anyway).
+            // Fire debris landing in flammable fluid ignites it.
             fireIt.remove();
             fireEntity.discard();
             FluidIgnition.markBurning(level, currentPos);
@@ -306,23 +241,15 @@ public class FlammableFluidExplosions {
             TrackedFluid tracked = fluidIt.next();
             FallingBlockEntity fluidEntity = tracked.entity();
             if (!fluidEntity.isAlive()) {
-                // Vanilla just landed it normally, placing the real fluid
-                // block at its last position -- mark that position
-                // burning immediately, so a tank's spilled fuel is
-                // already alight the moment it settles rather than
-                // needing some separate, coincidental ignition trigger
-                // (fire debris happening to land nearby, etc.) to catch
-                // up to it later.
+                // Ignites the landing position.
                 if (fluidEntity.level() instanceof ServerLevel level) {
                     FluidIgnition.markBurning(level, fluidEntity.blockPosition());
                 }
                 fluidIt.remove();
                 continue;
             }
-            if (fluidEntity.tickCount > MAX_TRACKED_FLUID_AGE_TICKS) {
-                // Falling long enough that something unusual is going on
-                // (same reasoning as the equivalent fire-entity cap
-                // above) -- stop watching it either way.
+            if (fluidEntity.tickCount > MAX_TRACKED_DEBRIS_AGE_TICKS) {
+                // Stops tracking falling fluid once it lands or has fallen too long.
                 fluidIt.remove();
                 continue;
             }
@@ -335,13 +262,7 @@ public class FlammableFluidExplosions {
         }
     }
 
-    /**
-     * FallingBlockEntity's renderer uses the standard block-model path,
-     * but LiquidBlock reports RenderShape.INVISIBLE to it, so a fluid
-     * entity is genuinely there and moving but invisible. Spawns
-     * particles at its position every tick as compensating visual
-     * feedback instead of writing a custom renderer for it.
-     */
+    /** Falling fluid blocks render invisibly, so particles are spawned to show them. */
     private static void spawnFluidTrailParticles(ServerLevel level, FallingBlockEntity fluidEntity, BlockState blockState) {
         double x = fluidEntity.getX();
         double y = fluidEntity.getY() + 0.5;
@@ -351,12 +272,7 @@ public class FlammableFluidExplosions {
                 x, y, z, 3, 0.2, 0.2, 0.2, 0.01);
     }
 
-    /**
-     * Extra horizontal-only drag on top of vanilla's own falling-block
-     * physics, added after testing found debris flying too far. Fire and
-     * fluid pass different drag values, since fire needed strong damping
-     * that would grind the fluid's much smaller push to nearly nothing.
-     */
+    /** Extra horizontal drag on top of normal falling-block physics. */
     private static void applyDrag(FallingBlockEntity entity, double drag) {
         if (drag >= 1.0) {
             return;
@@ -371,50 +287,14 @@ public class FlammableFluidExplosions {
 
     private static void trigger(ServerLevel level, BlockPos pos, int flammableAmountMb, Fluid fluid,
                                  List<BlockPos> tankBlocks) {
-        // Spawned as falling-block-style entities (the same mechanism
-        // sand and gravel use) rather than placed as static blocks -- by
-        // this point (a tick after the original explosion actually ran)
-        // the tank itself is already gone, so this position should be
-        // air, ready to spawn into. Spawning BEFORE the explosion below
-        // matters: vanilla's own explosion knockback applies to any
-        // nearby entity automatically, and this only counts as one if it
-        // already exists at the moment the explosion runs -- a static
-        // block placed here wouldn't be physically displaced by an
-        // explosion at all.
-        //
-        // One entity per full 1000 mB (one bucket) the tank held, rather
-        // than always exactly one regardless of how much fuel was
-        // actually there -- capped so an enormous, fully-loaded tank
-        // doesn't spill dozens of entities at once.
-        //
-        // Not every flammable fluid has a real, placeable world block --
-        // TFMG's own gas fuels (LPG, butane, propane, hydrogen, furnace
-        // gas) are all Create's own VirtualFluid, which deliberately
-        // overrides createLegacyBlock() to always return plain air (no
-        // bucket item either) -- conceptually, a gas doesn't pool and
-        // sit visibly the way a spilled liquid does, so Create gives it
-        // no world-placeable representation at all. Checked generically
-        // here (does the resulting state actually come back as
-        // something other than air) rather than importing VirtualFluid
-        // and checking for that type specifically, so this also handles
-        // any other similarly non-placeable fluid correctly without
-        // needing to know about it by name.
+        // Spawns one falling fluid entity per 1000 mB in the tank, up to the configured maximum.
         BlockState fluidBlockState = fluid.defaultFluidState().createLegacyBlock();
         if (!fluidBlockState.isAir()) {
             int maxFluidEntities = TFMGTweaksConfig.FUEL_EXPLOSIONS_MAX_FLUID_SPILL_COUNT.get();
             int fluidEntityCount = Math.min(maxFluidEntities, Math.max(1, flammableAmountMb / 1000));
             RandomSource fluidRandom = level.getRandom();
             for (int i = 0; i < fluidEntityCount; i++) {
-                // Same small random horizontal offset fire debris gets
-                // below, and for the same reason: spawned dead-center on
-                // the explosion (the position destroyed to hold this
-                // fluid IS the explosion's own center), the knockback
-                // this receives is almost purely vertical -- there's
-                // very little horizontal distance between the entity and
-                // the blast center for a sideways component to come
-                // from. Offsetting it the same way fire already is gives
-                // it a real horizontal kick too, instead of just bobbing
-                // straight up and back down in place.
+                
                 BlockPos fluidSpawnPos = pos.offset(fluidRandom.nextInt(3) - 1, 0, fluidRandom.nextInt(3) - 1);
                 if (!level.getBlockState(fluidSpawnPos).isAir()) {
                     continue;
@@ -433,55 +313,17 @@ public class FlammableFluidExplosions {
                 (flammableAmountMb / 1000.0) * TFMGTweaksConfig.FUEL_EXPLOSIONS_POWER_PER_BUCKET.get(),
                 TFMGTweaksConfig.FUEL_EXPLOSIONS_MAX_POWER.get());
 
-        // Explicit, guaranteed destruction of every segment the tank
-        // actually occupies (collectFluidTankBlocks(), computed back at
-        // onExplosionDetonate() time while the block entity still
-        // existed to ask) -- not something left to level.explode() below
-        // to hopefully also reach on its own. A single explosion
-        // centered at one specific block, whichever one TNT's own
-        // affected-blocks list happened to expose a capability handler
-        // for, has no guarantee of reaching every segment of a large
-        // multi-block tank at all: blast intensity falls off with both
-        // distance and each block's own resistance along the way, so a
-        // segment on the far side of a big tank could easily be out of
-        // effective range even from an explosion powerful enough to
-        // devastate everything closer -- confirmed as exactly the
-        // problem being fixed here, not just a theoretical concern.
-        // No drop item -- an explosion violently destroying a tank
-        // dropping every single block as an item would look wrong. Skips
-        // pos itself (already air, destroyed by the original explosion
-        // that led here in the first place) and anything already air by
-        // the time this runs -- destroyBlock() on air would just be
-        // wasted work.
-        //
-        // Deliberately unconditional -- the tank itself is always fully
-        // destroyed, regardless of the surroundingBlocksDamaged config
-        // below. That config is specifically about whether the follow-up
-        // explosion is also destructive to whatever ELSE is nearby (the
-        // player's own build, terrain, unrelated structures), not
-        // whether the exploding tank itself gets destroyed.
+        
+        // Destroys the whole tank multiblock regardless of the surroundingBlocksDamaged setting.
         for (BlockPos tankPos : tankBlocks) {
             if (tankPos.equals(pos) || level.getBlockState(tankPos).isAir()) {
                 continue;
             }
             level.destroyBlock(tankPos, false);
         }
-
-        // Deliberately after the loop above, not before -- by this
-        // point the exploding tank's own blocks are already gone, so
-        // this scan naturally can't re-detect and re-queue the exact
-        // same tank it's currently processing at all, with no need for
-        // an explicit "skip the one I'm already handling" check.
+        // Chain-reacts to nearby tanks.
         chainToNearbyTanks(level, pos, tankBlocks);
 
-        // ExplosionInteraction.NONE (a real, confirmed-valid value --
-        // Create's own Train collision and NozzleBlockEntity already use
-        // it for the identical purpose) still deals damage, knockback,
-        // sound, and particles the same as BLOCK does -- it just doesn't
-        // destroy any blocks at all, anywhere, as part of the explosion
-        // itself. The tank's own destruction above already happened
-        // unconditionally either way, so this only ever affects whether
-        // the blast additionally tears up whatever's around it.
         Level.ExplosionInteraction interaction = TFMGTweaksConfig.FUEL_EXPLOSIONS_SURROUNDING_BLOCKS_DAMAGED.get()
                 ? Level.ExplosionInteraction.BLOCK
                 : Level.ExplosionInteraction.NONE;
@@ -508,23 +350,10 @@ public class FlammableFluidExplosions {
         igniteAround(level, pos);
     }
 
-    /**
-     * Shared between the main explosion (trigger()) and each individual
-     * secondary explosion -- same falling-fire-debris mechanism, same
-     * TRACKED_FIRE_ENTITIES tracking/interception (see that field's own
-     * doc, and the fluid-touching interception logic in onServerTick(),
-     * for why fire is spawned as a FallingBlockEntity rather than placed
-     * directly), just parameterized by count and position so both
-     * callers can use their own, separately configured amount.
-     */
+    /** Spawns falling fire debris for primary and secondary tank explosions. */
     private static void spawnFireDebris(ServerLevel level, BlockPos pos, int count) {
         RandomSource random = level.getRandom();
         for (int i = 0; i < count; i++) {
-            // Small random offset so they don't all spawn stacked in the
-            // exact same spot -- purely cosmetic scatter, not a
-            // correctness concern, since each one still independently
-            // falls/gets pushed/lands on its own regardless of exactly
-            // where within the tank's footprint it started.
             BlockPos firePos = pos.offset(random.nextInt(3) - 1, 0, random.nextInt(3) - 1);
             if (level.getBlockState(firePos).isAir()) {
                 FallingBlockEntity fireEntity = FallingBlockEntity.fall(level, firePos, BaseFireBlock.getState(level, firePos));
@@ -533,14 +362,7 @@ public class FlammableFluidExplosions {
         }
     }
 
-    /**
-     * Explicitly scans an expanded bounding box around an already-
-     * exploding tank for other separate tanks holding enough flammable
-     * fluid, queuing their own explosion too, rather than relying on
-     * the follow-up blast's own physics to happen to reach them.
-     * Chained tanks go through the same PENDING queue and trigger()
-     * path, so a long enough row cascades the whole way down.
-     */
+    /** Queues chain-reaction explosions for nearby tanks holding enough flammable fluid. */
     private static void chainToNearbyTanks(ServerLevel level, BlockPos originPos, List<BlockPos> tankBlocks) {
         int radius = TFMGTweaksConfig.FUEL_EXPLOSIONS_CHAIN_RADIUS.get();
         if (radius <= 0) {
@@ -633,18 +455,6 @@ public class FlammableFluidExplosions {
             return;
         }
         BlockState fireState = BaseFireBlock.getState(level, pos);
-        // setBlock() with UPDATE_CLIENTS, not setBlockAndUpdate() (which
-        // is UPDATE_ALL, including neighbor updates) -- a neighbor update
-        // firing the instant this is placed can trigger FireBlock's own
-        // canSurvive() check synchronously, right then, rather than
-        // waiting for the block's own next natural update cycle. Support
-        // conditions that were good enough to pass canBePlacedAt() a
-        // moment ago can still fail that immediate, synchronous recheck
-        // depending on exactly what else is going on nearby at that
-        // instant, extinguishing the fire before it's even had a chance
-        // to actually be seen, let alone do anything. UPDATE_CLIENTS
-        // still syncs the placement to nearby clients (so it renders
-        // normally) without triggering that same neighbor-update cascade.
         level.setBlock(pos, fireState, Block.UPDATE_CLIENTS);
     }
 }

@@ -8,19 +8,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
 
-/**
- * VatBlockEntity's own removeController() is a complete no-op on the
- * client (`if (level.isClientSide) return;` as its first line, before
- * even resetting controller/width/height). Since TFMG's own multiblock
- * formation runs independently on both sides, the client keeps
- * rendering the old merged structure even after a server-side split.
- * @Overwrite restructures it so the client-safe parts (resetting local
- * state, recomputing the blockstate) run unconditionally on both sides,
- * while server-authoritative parts stay gated as before.
- */
+/** Runs the client-safe part of removeController() on the client too, so split vats render correctly. */
 @Mixin(VatBlockEntity.class)
 public abstract class VatBlockEntityRemoveControllerClientFixMixin {
-
     @Shadow
     protected BlockPos controller;
 

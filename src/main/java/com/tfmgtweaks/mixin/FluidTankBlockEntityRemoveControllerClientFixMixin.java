@@ -12,18 +12,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
 
-/**
- * Same bug and fix as VatBlockEntityRemoveControllerClientFixMixin, for
- * Create's own FluidTankBlockEntity (shared by every fluid tank
- * subclass, including TFMG's own): removeController() is a complete
- * no-op on the client, so the client's copy of a merged structure is
- * never corrected. Client-safe parts now run on both sides; server-
- * authoritative parts stay gated as before -- a strict improvement with
- * no behavior change for anyone.
- */
+/** Runs the client-safe part of removeController() on the client too, so split tanks render correctly. */
 @Mixin(FluidTankBlockEntity.class)
 public abstract class FluidTankBlockEntityRemoveControllerClientFixMixin {
-
     @Shadow
     protected BlockPos controller;
 

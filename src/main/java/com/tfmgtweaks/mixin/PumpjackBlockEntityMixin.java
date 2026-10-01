@@ -6,19 +6,10 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-/**
- * A pump jack's multiblock invalidates and needs manual rebuilding if
- * any nearby chunk unloads even briefly, since tick() disassembles
- * immediately the moment a neighbor lookup returns null. Redirects the
- * isComplete() check to track consecutive "incomplete" ticks, only
- * disassembling once that streak exceeds a grace period.
- */
+/** Only disassembles the pump jack after it has been incomplete for a grace period, so brief chunk unloads don't break it. */
 @Mixin(PumpjackBlockEntity.class)
 public abstract class PumpjackBlockEntityMixin {
-
-    // ~2 seconds at 20 TPS. Raise if chunk-load hiccups on your setup last
-    // longer than this; lower if you want disassembly to react faster to
-    // genuine breaks.
+    // About 2 seconds.
     private static final int TFMGTWEAKS$DISASSEMBLE_GRACE_TICKS = 40;
 
     @Unique
@@ -36,8 +27,6 @@ public abstract class PumpjackBlockEntityMixin {
             return true;
         }
         tfmgtweaks$incompleteTickStreak++;
-        // report "still complete" (suppressing disassemble) until the
-        // incomplete streak persists past the grace period
         return tfmgtweaks$incompleteTickStreak < TFMGTWEAKS$DISASSEMBLE_GRACE_TICKS;
     }
 }

@@ -2,7 +2,6 @@ package com.tfmgtweaks.pumpjack;
 
 import com.drmangotea.tfmg.content.machinery.oil_processing.pumpjack.base.PumpjackBaseBlockEntity;
 import com.simibubi.create.content.fluids.FluidPropagator;
-import com.tfmgtweaks.TFMGTweaks;
 import com.tfmgtweaks.config.TFMGTweaksConfig;
 import com.tfmgtweaks.content.oilrock.OilRockBlockEntity;
 import com.tfmgtweaks.registry.TFMGTweaksFluids;
@@ -23,17 +22,11 @@ import java.util.EnumMap;
 import java.util.Map;
 
 /**
- * Holds the pump jack's oil/waste/Steam state and exposes it as three
- * fully isolated IFluidHandler views (forOilOnly/forWasteOnly/
- * forSteamOnly), one per role a player can wrench a face to. Installed and
- * exposed directionally by PumpjackBaseBlockEntityFrackingMixin; faces are
- * reconfigured by PumpjackWrenchInteractionHandler.
- *
- * Every face starts unassigned; multiple faces can share the same role.
+ * Holds the pump jack's oil, waste, and Steam state and exposes separate fluid handlers for each role.
+ * Faces start unassigned, and multiple faces can share the same role.
  */
 public class PumpjackFrackingWrapper {
-
-    /** Which function (if any) a given face is currently assigned to. */
+    /** The fluid role currently assigned to a face. */
     public enum FaceRole {
         NONE, OIL, WASTE, STEAM
     }
@@ -44,10 +37,10 @@ public class PumpjackFrackingWrapper {
     public int wasteAmount = 0;
     public int steamAmount = 0;
 
-    /** Whether wasteAmount has ever gone from empty to non-empty -- same one-time-only reasoning as hasEverHadOil elsewhere. */
+    /** Tracks whether waste has ever been produced. */
     private boolean hasEverHadWaste = false;
 
-    /** Per-face role assignment; absent means NONE. */
+    /** Per-face fluid role assignments; absent means NONE. */
     private final Map<Direction, FaceRole> faceRoles = new EnumMap<>(Direction.class);
 
     public PumpjackFrackingWrapper(PumpjackBaseBlockEntity pumpjack, IFluidHandler oilTank) {
@@ -55,7 +48,7 @@ public class PumpjackFrackingWrapper {
         this.oilTank = oilTank;
     }
 
-    /** Sets a face's role during NBT load, without assignRole()'s sync/notify side effects. */
+    /** Loads a face role without triggering sync or neighbor updates. */
     public void loadRole(Direction face, FaceRole role) {
         if (role == FaceRole.NONE) {
             faceRoles.remove(face);
@@ -64,16 +57,11 @@ public class PumpjackFrackingWrapper {
         }
     }
 
-    /** What role a specific face is currently playing, if any. */
     public FaceRole roleOf(Direction face) {
         return faceRoles.getOrDefault(face, FaceRole.NONE);
     }
 
-    /**
-     * Assigns a face to a new role. Saves, syncs to the client, invalidates
-     * this position's capability, and notifies the neighboring pipe so it
-     * re-checks its connection instead of staying stuck on stale state.
-     */
+    /** Assigns a role to a face, then syncs, invalidates capabilities and refreshes the neighboring pipe. */
     public void assignRole(Direction face, FaceRole role) {
         if (role == FaceRole.NONE) {
             faceRoles.remove(face);
@@ -86,7 +74,7 @@ public class PumpjackFrackingWrapper {
         notifyNeighbor(face);
     }
 
-    /** Forces the neighbor at this face to re-check its pipe connection. */
+    /** Recomputes and refreshes the neighboring pipe connection. */
     private void notifyNeighbor(Direction face) {
         Level level = pumpjack.getLevel();
         if (level == null) {
@@ -94,21 +82,6 @@ public class PumpjackFrackingWrapper {
         }
         BlockPos neighborPos = pumpjack.getBlockPos().relative(face);
         BlockState neighborState = level.getBlockState(neighborPos);
-
-        // The actual fix: neighborChanged() below only triggers game LOGIC
-        // (TFMG's own FluidPipeBlockMixin schedules a tick from it) -- it
-        // never recomputes the pipe's own connection blockstate, which is
-        // what its visual model is actually keyed on. Vanilla only ever
-        // calls a neighbor's updateShape() automatically when the
-        // originating block's own BLOCKSTATE changes -- but wrenching a
-        // pump jack face only changes block-entity NBT, never the pump
-        // jack's own blockstate, so that automatic propagation never
-        // fires here at all. Calling updateShape() directly and applying
-        // its result is the same thing vanilla does internally for a real
-        // blockstate change; it recomputes and returns the neighbor's
-        // correct connection state, which we then have to actually apply
-        // ourselves via setBlock() since we're not going through the
-        // normal setBlock()-triggers-neighbor-updates path.
         BlockState updatedNeighborState = neighborState.updateShape(
                 face.getOpposite(), pumpjack.getBlockState(), level, neighborPos, pumpjack.getBlockPos());
         level.setBlock(neighborPos, updatedNeighborState, 3);
@@ -118,21 +91,14 @@ public class PumpjackFrackingWrapper {
         FluidPropagator.propagateChangedPipe(level, neighborPos, updatedNeighborState);
     }
 
-    /**
-     * Notifies all 6 neighbors at once. Used when the client learns of a
-     * role change via sync (see the mixin's read() injection), where only
-     * the full resulting state is known, not which face(s) changed.
-     */
+    /** Notifies all 6 neighbors, used when the client receives a role change. */
     public void notifyAllNeighbors() {
         for (Direction direction : Direction.values()) {
             notifyNeighbor(direction);
         }
     }
 
-    /**
-     * Cycles a face through NONE -> OIL -> WASTE -> STEAM -> NONE. Returns
-     * the role the face ends up with, for wrench feedback.
-     */
+    /** Cycles a face through NONE -> OIL -> WASTE -> STEAM and returns the new role. */
     public FaceRole cycleRole(Direction face) {
         FaceRole current = roleOf(face);
         FaceRole next = switch (current) {
@@ -145,37 +111,27 @@ public class PumpjackFrackingWrapper {
         return next;
     }
 
-    /** Exposed from whichever side is currently assigned to oil -- crude oil only, nothing else visible. */
+    /** Handler for faces assigned to oil. */
     public IFluidHandler forOilOnly() {
         return new OilOnlyView();
     }
 
-    /** Exposed from whichever side is currently assigned to waste -- waste only, nothing else visible. */
+    /** Handler for faces assigned to waste. */
     public IFluidHandler forWasteOnly() {
         return new WasteOnlyView();
     }
 
-    /** Exposed from whichever side is currently assigned to Steam -- Steam only, nothing else visible. */
+    /** Handler for faces assigned to Steam. */
     public IFluidHandler forSteamOnly() {
         return new SteamOnlyView();
     }
 
-    /**
-     * Exposed for null-context (non-side-specific) queries, e.g. TFMG's own
-     * goggle tooltip. Shows all three tanks at once but is read-only, so it
-     * can't be used to move fluid between them.
-     */
+    /** Read-only view of all three tanks for side-less queries such as goggle tooltips. */
     public IFluidHandler forDisplay() {
         return new DisplayOnlyView();
     }
 
-    /**
-     * Drains the Steam tank into fracking progress + waste over time,
-     * rate-limited to a percentage of the Steam tank's own capacity per
-     * tick rather than converting everything instantly. Waste is produced
-     * at half the rate Steam is consumed; fracking progress tracks the
-     * full amount of Steam consumed regardless.
-     */
+    /** Converts Steam into fracking progress and half as much waste, rate-limited per tick. */
     public void tickProcessing() {
         if (steamAmount <= 0 || !pumpjack.isRunning) {
             return;
@@ -234,16 +190,15 @@ public class PumpjackFrackingWrapper {
         return TFMGTweaksFluids.STEAM_SOURCE.get();
     }
 
-    /** Polluted Water if "Pollution of the Realms" is installed, otherwise plain Water. */
+    /** Returns polluted water when available, otherwise regular water. */
     private Fluid getWasteFluid() {
         Fluid pollutedWater = BuiltInRegistries.FLUID.get(
                 ResourceLocation.fromNamespaceAndPath("adpother", "polluted_water_still"));
         return pollutedWater != Fluids.EMPTY ? pollutedWater : Fluids.WATER;
     }
 
-    /** Crude oil (tank 0) only -- waste and Steam are entirely invisible through this view. */
+    /** Exposes only the crude oil tank. */
     private class OilOnlyView implements IFluidHandler {
-
         @Override
         public int getTanks() {
             return 1;
@@ -274,26 +229,17 @@ public class PumpjackFrackingWrapper {
 
         @Override
         public FluidStack drain(FluidStack resource, FluidAction action) {
-            FluidStack result = oilTank.drain(resource, action);
-            TFMGTweaks.LOGGER.info(
-                    "[diagnostic][PumpjackFrackingWrapper] OilOnlyView.drain(resource={}, action={}) -> {}",
-                    resource, action, result);
-            return result;
+            return oilTank.drain(resource, action);
         }
 
         @Override
         public FluidStack drain(int maxDrain, FluidAction action) {
-            FluidStack result = oilTank.drain(maxDrain, action);
-            TFMGTweaks.LOGGER.info(
-                    "[diagnostic][PumpjackFrackingWrapper] OilOnlyView.drain(maxDrain={}, action={}) -> {}",
-                    maxDrain, action, result);
-            return result;
+            return oilTank.drain(maxDrain, action);
         }
     }
 
-    /** Waste byproduct (tank 0) only -- oil and Steam are entirely invisible through this view. */
+    /** Exposes only the waste tank. */
     private class WasteOnlyView implements IFluidHandler {
-
         @Override
         public int getTanks() {
             return 1;
@@ -345,9 +291,8 @@ public class PumpjackFrackingWrapper {
         }
     }
 
-    /** Steam (tank 0) only -- oil and waste are entirely invisible through this view. */
+    /** Exposes only the Steam tank. */
     private class SteamOnlyView implements IFluidHandler {
-
         @Override
         public int getTanks() {
             return 1;
@@ -397,9 +342,8 @@ public class PumpjackFrackingWrapper {
         }
     }
 
-    /** Shows all three tanks together, purely for display -- fill()/drain() always reject. */
+    /** Shows all three tanks for display; fluid transfer is disabled. */
     private class DisplayOnlyView implements IFluidHandler {
-
         @Override
         public int getTanks() {
             return 3;

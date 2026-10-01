@@ -4,13 +4,8 @@ import com.drmangotea.tfmg.registry.TFMGSoundEvents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
 
-/**
- * Four sound events removed during TFMG's 1.0 -> 1.2 rewrite, restored
- * via TFMG's own TFMGSoundEvents registry API. Audio and text recovered
- * from TFMG 1.0.2f.
- */
+/** Restores sound events removed in TFMG's 1.0 -> 1.2 rewrite, using TFMG's own sound registry. */
 public class TFMGTweaksSoundEvents {
-
     public static TFMGSoundEvents.SoundEntry ELECTRIC_HUM;
     public static TFMGSoundEvents.SoundEntry GENERATOR_HUM;
     public static TFMGSoundEvents.SoundEntry SWITCH_ON;

@@ -21,18 +21,9 @@ import org.spongepowered.asm.mixin.Shadow;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Vat recipes with 2+ item outputs silently drop every output after the
- * first one that stacks onto an existing item, since TFMG's own
- * handleRecipe() uses `break` instead of `continue` when an output is
- * handled by stacking, exiting the whole outer loop. A full @Overwrite
- * was needed since this needs actual control-flow surgery, not a
- * single-value redirect; everything else here is copied unchanged from
- * TFMG's own source.
- */
+/** Fixes vat recipes with 2+ item outputs dropping outputs after one stacks (break -> continue). */
 @Mixin(VatBlockEntity.class)
 public abstract class VatBlockEntityHandleRecipeFixMixin {
-
     @Shadow
     protected IFluidHandler fluidCapability;
 
@@ -67,7 +58,6 @@ public abstract class VatBlockEntityHandleRecipeFixMixin {
             return;
 
         if (timer >= recipe.getProcessingDuration()) {
-
             SmartFluidTank outputFluidHandler = self.outputTank.getPrimaryHandler();
             IFluidHandler fluidHandler = fluidCapability;
             IItemHandler itemHandler = itemCapability;
@@ -83,9 +73,8 @@ public abstract class VatBlockEntityHandleRecipeFixMixin {
                 }
             }
 
-            // item output -- the actual fix is the break -> continue below.
+            // item output; the fix is the continue below
             for (ProcessingOutput output : recipe.getRollableResults()) {
-
                 ItemStack itemStack = output.rollOutput(self.getLevel().random);
 
                 boolean handled = false;

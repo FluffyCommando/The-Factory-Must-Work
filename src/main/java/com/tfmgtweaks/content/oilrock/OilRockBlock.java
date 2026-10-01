@@ -19,15 +19,8 @@ import net.minecraft.world.level.material.Fluid;
 
 import org.jetbrains.annotations.Nullable;
 
-/**
- * A new underground-spawning oil deposit, drop-in equivalent for pump
- * jack extraction with an added fracking mechanic: Steam speeds up
- * extraction, decaying continuously rather than a one-time unlock (see
- * OilRockBlockEntity). CRACKED is a real blockstate property so the
- * cracked/uncracked textures actually render.
- */
+/** Oil Rock: an underground oil deposit that can be cracked with Steam for faster extraction. */
 public class OilRockBlock extends BaseEntityBlock {
-
     public static final BooleanProperty CRACKED = BooleanProperty.create("cracked");
     public static final MapCodec<OilRockBlock> CODEC = simpleCodec(OilRockBlock::new);
 
@@ -86,5 +79,4 @@ public class OilRockBlock extends BaseEntityBlock {
         }
     }
 }
-
 

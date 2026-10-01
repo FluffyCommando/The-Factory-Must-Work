@@ -1,7 +1,6 @@
 package com.tfmgtweaks.mixin;
 
 import com.drmangotea.tfmg.content.machinery.oil_processing.pumpjack.base.PumpjackBaseBlockEntity;
-import com.tfmgtweaks.TFMGTweaks;
 import com.tfmgtweaks.api.ITFMGTweaksPumpjackFluidCapability;
 import com.tfmgtweaks.pumpjack.PumpjackFrackingWrapper;
 import net.minecraft.ChatFormatting;
@@ -19,7 +18,6 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
-import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -30,22 +28,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
-/**
- * Reworks the pump jack base's fluid capability into player-configurable,
- * per-side assignment (oil/waste/Steam) via PumpjackFrackingWrapper,
- * replacing TFMG's single combined handler -- a player wrenches each
- * side to a role (see PumpjackWrenchInteractionHandler). tick-hooks run
- * at HEAD, not TAIL, since the original tick() has early returns that
- * would silently skip a TAIL injection.
- */
+/** Replaces the pump jack base's fluid capability with per-face roles (oil, waste, Steam). */
 @Mixin(PumpjackBaseBlockEntity.class)
 public abstract class PumpjackBaseBlockEntityFrackingMixin implements ITFMGTweaksPumpjackFluidCapability {
-
     @Shadow
     protected IFluidHandler fluidCapability;
-
-    @Shadow
-    public FluidTank tank;
 
     private PumpjackFrackingWrapper tfmgtweaks$frackingCore;
 
@@ -53,7 +40,7 @@ public abstract class PumpjackBaseBlockEntityFrackingMixin implements ITFMGTweak
     private void tfmgtweaks$installFrackingWrapper(BlockEntityType<?> type, BlockPos pos, BlockState state,
                                                      CallbackInfo ci) {
         PumpjackBaseBlockEntity self = (PumpjackBaseBlockEntity) (Object) this;
-        this.tfmgtweaks$frackingCore = new PumpjackFrackingWrapper(self, this.tank);
+        this.tfmgtweaks$frackingCore = new PumpjackFrackingWrapper(self, self.tank);
         this.fluidCapability = this.tfmgtweaks$frackingCore.forDisplay();
     }
 
@@ -78,24 +65,12 @@ public abstract class PumpjackBaseBlockEntityFrackingMixin implements ITFMGTweak
                 (be, context) -> {
                     PumpjackFrackingWrapper core = ((ITFMGTweaksPumpjackFluidCapability) be).tfmgtweaks$getFrackingCore();
                     if (core == null) {
-                        TFMGTweaks.LOGGER.info(
-                                "[diagnostic][PumpjackBaseBlockEntityFrackingMixin] capability query at {}, "
-                                        + "context={}: no fracking core yet, returning null",
-                                be.getBlockPos(), context);
                         return null;
                     }
                     if (context == null) {
-                        TFMGTweaks.LOGGER.info(
-                                "[diagnostic][PumpjackBaseBlockEntityFrackingMixin] capability query at {}, "
-                                        + "context=null: returning forDisplay()",
-                                be.getBlockPos());
                         return core.forDisplay();
                     }
                     PumpjackFrackingWrapper.FaceRole role = core.roleOf(context);
-                    TFMGTweaks.LOGGER.info(
-                            "[diagnostic][PumpjackBaseBlockEntityFrackingMixin] capability query at {}, "
-                                    + "context={}, resolved role={}",
-                            be.getBlockPos(), context, role);
                     return switch (role) {
                         case OIL -> core.forOilOnly();
                         case WASTE -> core.forWasteOnly();
@@ -113,30 +88,14 @@ public abstract class PumpjackBaseBlockEntityFrackingMixin implements ITFMGTweak
         }
     }
 
-    /** Whether this pump jack's oil tank has ever gone empty-to-nonempty since creation -- not persisted, see below. */
+    /** Whether the oil tank has filled since this block entity was created. */
     @Unique
     private boolean tfmgtweaks$hasEverHadOil = false;
 
-    /**
-     * Fixes a TFMG bug: a pump jack fills its tank then appears to stop,
-     * since process() never calls invalidateCapabilities() after
-     * filling, leaving a connected pipe on a stale "nothing to drain"
-     * cache. Only invalidates once, on the first empty-to-nonempty
-     * transition -- invalidating every tick or every fill reset Create's
-     * own multi-tick pipe network discovery before it could stabilize.
-     * Server-side only, since the decrease side of this callback was
-     * confirmed firing on the render thread too.
-     */
+    /** Invalidates capabilities once, when the oil tank first fills, so connected pipes can drain it. */
     @Inject(method = "onFluidStackChanged", at = @At("HEAD"))
     private void tfmgtweaks$invalidateCapabilitiesOnFluidChange(FluidStack newFluidStack, CallbackInfo ci) {
-        int newAmount = newFluidStack.getAmount();
-        boolean meaningfulTransition = !tfmgtweaks$hasEverHadOil && newAmount > 0;
-        TFMGTweaks.LOGGER.info(
-                "[diagnostic][PumpjackBaseBlockEntityFrackingMixin] onFluidStackChanged: newAmount={}, "
-                        + "hasEverHadOil={} (meaningfulTransition={})"
-                        + (meaningfulTransition ? ", invalidating" : ", not invalidating"),
-                newAmount, tfmgtweaks$hasEverHadOil, meaningfulTransition);
-        if (!meaningfulTransition) {
+        if (tfmgtweaks$hasEverHadOil || newFluidStack.getAmount() <= 0) {
             return;
         }
         tfmgtweaks$hasEverHadOil = true;
@@ -175,9 +134,7 @@ public abstract class PumpjackBaseBlockEntityFrackingMixin implements ITFMGTweak
                         : PumpjackFrackingWrapper.FaceRole.NONE;
                 tfmgtweaks$frackingCore.loadRole(direction, role);
             }
-            // The client never runs assignRole() itself, so this sync is
-            // the only way it learns a face's role changed -- notify all
-            // 6 neighbors so any connected pipe refreshes its rendering.
+            // The client only learns about role changes here, so refresh neighboring pipes.
             if (clientPacket) {
                 tfmgtweaks$frackingCore.notifyAllNeighbors();
             }
@@ -206,12 +163,7 @@ public abstract class PumpjackBaseBlockEntityFrackingMixin implements ITFMGTweak
         }
     }
 
-    /**
-     * Comma-separated list of every face currently assigned to a role, for
-     * the tooltip -- multiple faces can share the same role now (see
-     * PumpjackFrackingWrapper's own doc for why), so this can no longer
-     * just report a single side.
-     */
+    /** Comma-separated faces assigned to role. */
     private String tfmgtweaks$facesFor(PumpjackFrackingWrapper.FaceRole role) {
         StringBuilder result = new StringBuilder();
         for (Direction direction : Direction.values()) {

@@ -7,21 +7,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-/**
- * Dedicated server crash loop caused by
- * tfmg:winding_machine.
- *
- * Root cause: performRecipe uses getOrDefault(SPOOL_AMOUNT, default)
- * everywhere except two spots that call the raw get() instead. If the
- * spool item doesn't carry that component, get() returns null, and the
- * surrounding arithmetic auto-unboxes it -- NPE every tick.
- *
- * Fix: redirect every get(DataComponentType) call in performRecipe to
- * fall back to 0 instead of null, matching the pattern used elsewhere.
- */
+/** Treats a missing spool amount as 0 instead of null, fixing a server crash loop. */
 @Mixin(WindingMachineBlockEntity.class)
 public abstract class WindingMachineBlockEntityMixin {
-
     @Redirect(
         method = "performRecipe",
         at = @At(value = "INVOKE",

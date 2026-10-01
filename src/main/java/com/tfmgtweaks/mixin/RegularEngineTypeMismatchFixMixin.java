@@ -9,19 +9,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-/**
- * TFMG's own connect() chains adjacent engine blocks into one structure
- * with no check that engine type matches, so different engine types
- * (I/V/W/U/BOXER/RADIAL/TURBINE) can get chained together -- TFMG's own
- * source has this fix already written but commented out. Redirects
- * connect()'s scanning getBlockEntity() call to return null for a
- * type-mismatched candidate, letting the method's own existing "stop
- * and clean up" branch handle it naturally. Redundant on CE, which
- * fixed this differently (see TFMGTweaksMixinPlugin).
- */
+/** Stops different engine types chaining into one engine. */
 @Mixin(AbstractSmallEngineBlockEntity.class)
 public abstract class RegularEngineTypeMismatchFixMixin {
-
     @Redirect(method = "connect", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/world/level/Level;getBlockEntity(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/entity/BlockEntity;"))
     private BlockEntity tfmgtweaks$hideTypeMismatchedEngine(Level level, BlockPos pos) {

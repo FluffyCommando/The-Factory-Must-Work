@@ -10,16 +10,9 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Three of IElectric's default methods call
- * ElectricNetworkManager.networks.get() with no null check, even though
- * that same map's own getOrCreateNetworkFor() uses computeIfAbsent(),
- * proving it needs the guard -- a null here NPE-crashes electric block
- * placement/removal. Redirects to the same null-safe pattern.
- */
+/** Null-safe network lookups, fixing crashes when placing or removing electric blocks. */
 @Mixin(IElectric.class)
 public interface IElectricNetworksNullSafetyMixin {
-
     @Redirect(
         method = {"getOrCreateElectricNetwork", "onRemoved", "setNetwork"},
         at = @At(value = "INVOKE", target = "Ljava/util/Map;get(Ljava/lang/Object;)Ljava/lang/Object;"))

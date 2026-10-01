@@ -20,14 +20,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.PlayerAdvancements;
 import net.minecraft.server.level.ServerPlayer;
 
-/**
- * A simple, no-extra-conditions criterion trigger -- fires whenever
- * .trigger(player) is called from our own code, with nothing else to
- * check. Adapted directly from Create's own CriterionTriggerBase and
- * SimpleCreateTrigger, a real, verified, working implementation of this
- * exact pattern for this Minecraft version, rather than guessing at the
- * modern Codec-based criterion API from scratch.
- */
 public class TFMGTweaksSimpleTrigger implements CriterionTrigger<TFMGTweaksSimpleTrigger.Instance> {
 
     private final ResourceLocation id;

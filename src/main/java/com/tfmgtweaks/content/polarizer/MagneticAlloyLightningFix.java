@@ -13,17 +13,9 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityStruckByLightningEvent;
 
-/**
- * TFMG's own magnetic-alloy-to-magnet lightning conversion has a real
- * bug: its random-count logic ends up empty (destroying the item) about
- * 75% of the time for a single ingot. This registers a higher-priority
- * listener on the same event that handles the conversion correctly
- * (1 + random.nextInt(count) magnets) and cancels the event, so TFMG's
- * buggy handler never runs for this case.
- */
+/** Converts lightning-struck magnetic alloy into 1 + random(count) magnets and cancels TFMG's own handler. */
 @EventBusSubscriber(modid = TFMGTweaks.MOD_ID)
 public class MagneticAlloyLightningFix {
-
     private static final ResourceLocation MAGNETIC_ALLOY_INGOT_ID =
             ResourceLocation.fromNamespaceAndPath("tfmg", "magnetic_alloy_ingot");
     private static final ResourceLocation MAGNET_ID =
