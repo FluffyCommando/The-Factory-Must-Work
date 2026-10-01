@@ -10,7 +10,7 @@ A NeoForge addon for [The Factory Must Grow](https://www.curseforge.com/minecraf
 
 Packaged as its own mod jar rather than a fork of TFMG — bug fixes are applied via Mixin at runtime, so TFMG's own jar is never touched or recompiled.
 
-> **This is the lighter build for TFMG: Community Edition 1.3.2+.** It carries every new feature, but only the bug fixes TFMG:CE hasn't already fixed itself. For original TFMG 1.2.x, use the standard **TFMW** build instead. This build refuses to load without TFMG:CE.
+> **This is the lighter build for TFMG: Community Edition 1.3.2+.** It carries every new feature, but only the bug fixes TFMG:CE hasn't already fixed itself. For original TFMG 1.2.x, use the standard [TFMG](https://github.com/FluffyCommando/The-Factory-Must-Work) build instead. This build refuses to load without TFMG:CE.
 
 ## Requirements
 
